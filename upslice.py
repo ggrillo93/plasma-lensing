@@ -59,7 +59,8 @@ def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 100, gsiz
             """ Helper function for rootFinder. """
 
             roots = np.zeros([npoints, nreal + ncomplex, 2], dtype = complex)
-            realroots = polishedRoots(lensEq, 2*xmax, 2*ymax, args = (upvec[0], coeff))
+            realroots = polishedRoots(lensEq, uxmax, uymax, args = (upvec[0], coeff), plot = True)
+            print(realroots)
             if nreal > 1:
                 p = np.argsort(realroots.T[0])
                 realroots = realroots[p]
@@ -404,7 +405,7 @@ def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 100, gsiz
     for caus in upcross.T[0]:
         ax1.plot([caus, caus], [-10, 1000], ls = 'dashed', color = 'black')
     ax1.plot(finx, asymG, color = 'red')
-    ax1.set_ylim(-cdist, np.max(asymG) + 1.5)
+    ax1.set_ylim(-cdist, np.max(asymG) + 1.)
     ax1.set_xlim(np.min(rx2), np.max(rx2))
     ax1.set_xlabel(r"$u'_x$")
     ax1.set_ylabel('G')

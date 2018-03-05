@@ -3,8 +3,8 @@ from observables import *
 from upslice import *
 from kdi import *
 
-dso, dsl, f, dm, ax, ay = 1.1*kpc*pctocm, 0.55*kpc*pctocm, 0.8*GHz, 1e-6*pctocm, 0.02*autocm, 0.02*autocm
-gam = gamma(dso, dsl, f, dm)
+dso, dsl, f, dm, ax, ay = 1.1*kpc*pctocm, 0.55*kpc*pctocm, 0.8*GHz, -1e-5*pctocm, 0.04*autocm, 0.04*autocm
+alp = alpha(dso, dsl, f, dm)
 
 # tdm0 = c*re*dm/(2*pi*f**2)
 # print(tdm0)
@@ -16,7 +16,7 @@ m, n = 1., 3.
 # uF2y = rF2/ay**2
 # print(uF2x)
 # print(uF2y)
-coeff = gam*np.array([1./ax**2, 1./ay**2])
+coeff = alp*np.array([1./ax**2, 1./ay**2])
 print(coeff)
 # print(lc)
 # uxmax = 2
@@ -28,9 +28,9 @@ print(coeff)
 
 # distances = np.linspace(0.1, 0.5, 10)*kpc*pctocm
 # # Test plotting of caustic surfaces and caustic intersections
-# causPlotter(3, 3, gam, ax, ay, m = m, n = n)
+# causPlotter(5, 5, alp, ax, ay, m = m, n = n)
 # planeSlice(1.5, dso, dsl, f, dm, m, n, ax, ay, npoints = 150)
-planeSliceG(3., 3., dso, dsl, f, dm, m, n, ax, ay, npoints = 1000, gsizex = 2048, gsizey = 2048)
+planeSliceG(5., 5., dso, dsl, f, dm, m, n, ax, ay, npoints = 5000, gsizex = 2*2048, gsizey = 2*2048)
 # Test slice.py
 
 # Test findRoots for complex quantities

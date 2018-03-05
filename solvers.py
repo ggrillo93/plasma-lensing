@@ -154,7 +154,7 @@ def findRoots(func, uxmax, uymax, args = (), N = 500, plot = False):
     # print(roots)
     return roots
 
-def polishedRoots(func, uxmax, uymax, args = (), plot = False, N = 500):
+def polishedRoots(func, uxmax, uymax, args = (), plot = False, N = 1000):
     """ Finds roots of func using SciPy's "root" and the roots found by findRoots as initial guesses. """
     raw = findRoots(func, uxmax, uymax, args = args, plot = plot, N = N)
     count = 0
