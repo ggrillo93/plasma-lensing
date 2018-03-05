@@ -1,6 +1,6 @@
 from solvers import *
 from observables import *
-from upslicev2 import *
+from upslice import *
 from kdi import *
 
 dso, dsl, f, dm, ax, ay = 1.1*kpc*pctocm, 0.55*kpc*pctocm, 0.8*GHz, 1e-6*pctocm, 0.02*autocm, 0.02*autocm
