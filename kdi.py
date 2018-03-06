@@ -25,11 +25,10 @@ def solveKDI(uxmax, uymax, dso, dsl, f, dm, ax, ay, gsizex, gsizey, m = 0 , n = 
     lc = lensc(dm, f)
     uF2x = rF2/ax**2
     uF2y = rF2/ay**2
-    gam = rF2*lc
-    rx = np.linspace(-uxmax, uxmax, gsizex)
-    ry = np.linspace(-uymax, uymax, gsizey)
-    dux = 2*uxmax/gsizex
-    duy = 2*uymax/gsizey
+    rx = np.linspace(-2*uxmax, 2*uxmax, gsizex)
+    ry = np.linspace(-2*uymax, 2*uymax, gsizey)
+    dux = 4*uxmax/gsizex
+    duy = 4*uymax/gsizey
     extent = (-uxmax, uxmax, -uymax, uymax)
     ux, uy = np.meshgrid(rx, ry)
     lens = lensPhase(ux, uy, lc)
@@ -39,6 +38,7 @@ def solveKDI(uxmax, uymax, dso, dsl, f, dm, ax, ay, gsizex, gsizey, m = 0 , n = 
     fieldfft = lensfft*geofft
     field = fftshift(ifft2(fieldfft))
     soln = np.abs((dux*duy*field)**2/(4*pi**2*uF2x*uF2y))
+    soln = soln[int(0.25*gsizex):int(0.75*gsizex), int(0.25*gsizey):int(0.75*gsizey)]
 
     # Plot G across line of observer motion
     ymin = -m*uxmax + n

@@ -18,7 +18,7 @@ def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 100, gsiz
         """ Finds appropriate complex ray right next to caustic boundary. """
 
         def chooseRay(ucross):
-            imguess = np.linspace(-1, 1, 100)
+            imguess = np.linspace(-1, 1, 200)
             for guess in imguess:
                 croot = op.root(compLensEq, [ucross[0], guess, ucross[1], guess], args = (upvec, coeff))
                 # print(croot)
@@ -59,7 +59,7 @@ def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 100, gsiz
             """ Helper function for rootFinder. """
 
             roots = np.zeros([npoints, nreal + ncomplex, 2], dtype = complex)
-            realroots = polishedRoots(lensEq, uxmax, uymax, args = (upvec[0], coeff), plot = True)
+            realroots = polishedRoots(lensEq, 1.5*uxmax, 1.5*uymax, args = (upvec[0], coeff))
             print(realroots)
             if nreal > 1:
                 p = np.argsort(realroots.T[0])
@@ -77,6 +77,9 @@ def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 100, gsiz
                         roots[i][j] = roots[i-1][j]
 
             if ncomplex > 0:
+                if nreal == 3 and upvec[-1][0] < upcross[1][0]:
+                    roots = np.flipud(roots)
+                    upvec = np.flipud(upvec)
                 roots[0][nreal] = findComp(upvec[0])
                 for i in range(1, npoints):
                     prevcomp = roots[i-1][nreal] # find first complex root along upvec
@@ -87,6 +90,8 @@ def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 100, gsiz
                         print('Error finding complex root')
                         print(upvec[i])
                         roots[i][nreal] = roots[i-1][nreal]
+                if nreal == 3 and upvec[-1][0] < upcross[1][0]:
+                    roots = np.flipud(roots)
 
                 if ncomplex == 2:
                     upvec = np.flipud(upvec) # find second complex ray by iterating from other side
