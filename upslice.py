@@ -97,6 +97,7 @@ def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 100, gsiz
                     upvec = np.flipud(upvec) # find second complex ray by iterating from other side
                     roots = np.flipud(roots)
                     roots[0][nreal + 1] = findComp(upvec[0])
+                    # print(roots[0][nreal + 1])
                     for i in range(1, len(upvec)):
                         prevcomp = roots[i-1][nreal + 1]
                         tempcomp = op.root(compLensEq, [prevcomp[0].real, prevcomp[0].imag, prevcomp[1].real, prevcomp[1].imag], args = (upvec[i], coeff))
@@ -231,6 +232,7 @@ def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 100, gsiz
                 amp[i] = GOAmplitude(roots[i][pos], rF2, lc, ax, ay)
             xi = (1.5*np.abs(cphases.imag))**(2./3.)
             u1 = 2*pi**0.5*amp*(xi)**0.25 * airy(xi)[0] * exp(1j*(cphases.real + sig*0.25*pi))
+            #print(u1)
             return u1
 
         nroots = roots.shape[1]
@@ -241,7 +243,11 @@ def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 100, gsiz
         else:
             u1 = helpAsymp(sigs[1], 1)
             if ax == ay:
-                u2 = helpAsymp(sigs[1], 2)
+                if np.around(roots[0][1][0].real, 3) != np.around(roots[0][2][0].real, 3):
+                    # print([roots[0][1][0].real, roots[0][2][0].real])
+                    u2 = helpAsymp(sigs[1], 2)
+                else:
+                    u2 = np.zeros(npoints)
             else:
                 u2 = helpAsymp(sigs[2], 2)
             return np.abs(u1 + u2 + fields[0])**2
@@ -284,7 +290,7 @@ def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 100, gsiz
     xx = np.linspace(gridToPixel(xmin, uxmax, gsizex/2), gridToPixel(xmax, uxmax, gsizex/2) - 1, gsizex)
     yy = np.linspace(gridToPixel(ymin, uymax, gsizey/2), gridToPixel(ymax, uymax, gsizey/2) - 1, gsizey)
 
-    cdist = xmax*2e-3
+    cdist = xmax*1e-3
 
     if ncross == 2: # 2 dark regions with 1 image, 1 bright region with 3 images
         # Create slice by segments
@@ -323,6 +329,7 @@ def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 100, gsiz
     for i in range(len(nsolns)):
         roots = rootFinder(segs[i], nsolns[i])
         allroots.append(roots)
+    # print(allroots[2][-5:])
     # print(allroots)
 
     # Calculate fields
@@ -389,7 +396,7 @@ def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 100, gsiz
     ux, uy = np.meshgrid(rx, ry)
 
     rx2 = np.linspace(xmin, xmax, gsizex)
-    im0 = ax0.imshow(soln, origin = 'lower', extent = extent, aspect = 'auto', cmap = 'jet') # Plot entire screen
+    im0 = ax0.imshow(soln, origin = 'lower', extent = extent, aspect = 'auto') # Plot entire screen
     fig.colorbar(im0, ax = ax0)
     ucaus = causCurve([ux, uy], lc*np.array([uF2x, uF2y]))
     cs = plt.contour(np.linspace(-uxmax, uxmax, gsizex), ry, ucaus, levels = [0, np.inf], linewidths = 0)
