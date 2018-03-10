@@ -174,6 +174,132 @@ def checkRoot(func, soln, args = ()):
     rem = func(soln, *args)
     return rem
 
+# Root finding along a set of coordinates
+
+def rootFinder(upvec, nsoln, dm, cdist, ucross, upcross, ncross, uxmax, uymax, coeff):
+    """ Solves the lens equation for every pair of points in the u'-plane contained in upvec, given expected number of solutions. """
+    
+    def findComp(upvec):
+        """ Finds appropriate complex ray right next to caustic boundary. """
+
+        def chooseRay(ucross):
+            imguess = np.linspace(-1, 1, 200)
+            for guess in imguess:
+                croot = op.root(compLensEq, [ucross[0], guess, ucross[1], guess], args=(upvec, coeff))
+                # print(croot)
+                # check that the root finder finds the correct complex ray
+                if croot.success and np.abs(croot.x[1]) > 0.001*np.abs(croot.x[0]) and np.abs(croot.x[0] - ucross[0]) < 1.:
+                    print([ucross, croot.x])
+                    croot1 = [croot.x[0] + 1j*croot.x[1],
+                            croot.x[2] + 1j*croot.x[3]]
+                    return croot1
+                elif croot.success:  # for debugging purposes
+                    pass
+                    # print([ucross, croot.x])
+            print('No complex ray found')
+            return 0
+
+        if upvec[0] < upcross[0][0]:
+            return chooseRay(ucross[0])
+        elif upvec[0] > upcross[-1][0]:
+            return chooseRay(ucross[-1])
+        else:  # necessarily four caustic crossings
+            if dm < 0:  # negative dm
+                # region in between first and second caustic crossing
+                if upvec[0] > upcross[0][0] and upvec[0] < upcross[1][0]:
+                    return chooseRay(ucross[1])
+                else:  # region in between third and fourth caustic crossings
+                    return chooseRay(ucross[2])
+            else:
+                # need to distinguish between point right after second caustic and point right before third caustic
+                if (upvec[0] - upcross[1][0] > 2*cdist):
+                    return chooseRay(ucross[2])
+                else:
+                    return chooseRay(ucross[1])
+
+    def rootHelper(upvec, nreal, ncomplex):
+        """ Helper function for rootFinder. """
+        
+        npoints = len(upvec)
+        roots = np.zeros([npoints, nreal + ncomplex, 2], dtype=complex)
+        realroots = polishedRoots(lensEq, 1.5*uxmax, 1.5*uymax, args=(upvec[0], coeff))
+        # print(realroots)
+        if nreal > 1:
+            p = np.argsort(realroots.T[0])
+            realroots = realroots[p]
+        for i in range(nreal):
+            roots[0][i] = realroots[i]
+        for i in range(1, npoints):
+            for j in range(nreal):  # find real roots along upvec
+                tempr = op.root(
+                    lensEq, roots[i-1][j].real, args=(upvec[i], coeff))
+                if tempr.success:
+                    roots[i][j] = tempr.x
+                else:
+                    print('Error finding real root')
+                    print(upvec[i])
+                    roots[i][j] = roots[i-1][j]
+
+        if ncomplex > 0:
+            if nreal == 3 and upvec[-1][0] < upcross[1][0]:
+                roots = np.flipud(roots)
+                upvec = np.flipud(upvec)
+            roots[0][nreal] = findComp(upvec[0])
+            for i in range(1, npoints):
+                # find first complex root along upvec
+                prevcomp = roots[i-1][nreal]
+                tempcomp = op.root(compLensEq, [
+                                    prevcomp[0].real, prevcomp[0].imag, prevcomp[1].real, prevcomp[1].imag], args=(upvec[i], coeff))
+                if tempcomp.success:
+                    roots[i][nreal] = np.array(
+                        [tempcomp.x[0] + 1j*tempcomp.x[1], tempcomp.x[2] + 1j*tempcomp.x[3]])
+                else:
+                    print('Error finding complex root')
+                    print(upvec[i])
+                    roots[i][nreal] = roots[i-1][nreal]
+            if nreal == 3 and upvec[-1][0] < upcross[1][0]:
+                roots = np.flipud(roots)
+
+            if ncomplex == 2:
+                # find second complex ray by iterating from other side
+                upvec = np.flipud(upvec)
+                roots = np.flipud(roots)
+                roots[0][nreal + 1] = findComp(upvec[0])
+                for i in range(1, len(upvec)):
+                    prevcomp = roots[i-1][nreal + 1]
+                    tempcomp = op.root(compLensEq, [
+                                        prevcomp[0].real, prevcomp[0].imag, prevcomp[1].real, prevcomp[1].imag], args=(upvec[i], coeff))
+                    if tempcomp.success:
+                        roots[i][nreal + 1] = np.array(
+                            [tempcomp.x[0] + 1j*tempcomp.x[1], tempcomp.x[2] + 1j*tempcomp.x[3]])
+                    else:
+                        print('Error finding complex root')
+                        print(upvec[i])
+                roots = np.flipud(roots)
+
+        return roots
+
+    print(nsoln)
+
+    if nsoln == 1:
+        # one real root and one/two complex roots
+        # check whether its necessary to iterate left to right or right to left
+        # greatest upx-value of upvec is less than upx-value of first caustic, so iterate right to left
+        if upvec[-1][0] < upcross[0][0]:
+            upvec = np.flipud(upvec)
+            roots = rootHelper(upvec, 1, 1)
+            roots = np.flipud(roots)  # return to left-right ordering
+        # middle dark side region, need two complex rays
+        elif ncross == 4 and upvec[0][0] > upcross[1][0] and upvec[-1][0] < upcross[2][0]:
+            roots = rootHelper(upvec, 1, 2)
+        else:
+            roots = rootHelper(upvec, 1, 1)
+    elif dm < 0 and ncross == 4 and nsoln == 3:  # three real roots and one complex root
+        roots = rootHelper(upvec, 3, 1)
+    else:  # three or five real roots, no complex roots
+        roots = rootHelper(upvec, nsoln, 0)
+    return roots
+
 # Numerical derivatives
 
 @jit(nopython=True)

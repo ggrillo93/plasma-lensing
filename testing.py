@@ -8,7 +8,7 @@ alp = alpha(dso, dsl, f, dm)
 
 # tdm0 = c*re*dm/(2*pi*f**2)
 # print(tdm0)
-m, n = 1.2, 2.5
+m, n = 1., 1.
 # rF2 = rFsqr(dso, dsl, f)
 # print(rF2)
 lc = lensc(dm, f)
@@ -30,7 +30,7 @@ print(lc)
 # # Test plotting of caustic surfaces and caustic intersections
 # causPlotter(4, 4, alp, ax, ay, m = m, n = n)
 # planeSlice(1.5, dso, dsl, f, dm, m, n, ax, ay, npoints = 150)
-planeSliceG(4., 3., dso, dsl, f, dm, m, n, ax, ay, npoints = 5000, gsizex = 2*2048, gsizey = 2*2048)
+planeSliceG(3., 3., dso, dsl, f, dm, m, n, ax, ay, npoints = 5000, gsizex = 2*2048, gsizey = 2*2048)
 # Test slice.py
 
 # Test findRoots for complex quantities
