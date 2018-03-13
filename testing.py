@@ -3,13 +3,13 @@ from observables import *
 from upslice import *
 from kdi import *
 
-dso, dsl, f, dm, ax, ay = 1.1*kpc*pctocm, 0.55*kpc*pctocm, 0.8*GHz, 5e-6*pctocm, 0.04*autocm, 0.04*autocm
+dso, dsl, f, dm, ax, ay = 1.1*kpc*pctocm, 0.55*kpc*pctocm, 0.8*GHz, 5e-4*pctocm, 0.4*autocm, 0.4*autocm
 alp = alpha(dso, dsl, f, dm)
 
 # tdm0 = c*re*dm/(2*pi*f**2)
 # print(tdm0)
-m, n = 1., 1.
-# rF2 = rFsqr(dso, dsl, f)
+m, n = 0.5, 0.
+rF2 = rFsqr(dso, dsl, f)
 # print(rF2)
 lc = lensc(dm, f)
 # uF2x = rF2/ax**2
@@ -28,9 +28,9 @@ print(lc)
 
 # distances = np.linspace(0.1, 0.5, 10)*kpc*pctocm
 # # Test plotting of caustic surfaces and caustic intersections
-# causPlotter(4, 4, alp, ax, ay, m = m, n = n)
-# planeSlice(1.5, dso, dsl, f, dm, m, n, ax, ay, npoints = 150)
-planeSliceG(3., 3., dso, dsl, f, dm, m, n, ax, ay, npoints = 5000, gsizex = 2*2048, gsizey = 2*2048)
+# causPlotter(2.5, 2.5, alp, ax, ay, m = m, n = n)
+planeSliceTOA(4., 4., dso, dsl, f, dm, m, n, ax, ay, 1000)
+# planeSliceG(3., 3., dso, dsl, f, dm, m, n, ax, ay, npoints = 20000, gsizex = 1.5*2048, gsizey = 1.5*2048)
 # Test slice.py
 
 # Test findRoots for complex quantities
@@ -39,9 +39,9 @@ planeSliceG(3., 3., dso, dsl, f, dm, m, n, ax, ay, npoints = 5000, gsizex = 2*20
 # print(roots)
 
 # Test infite GO gain at caustics
-# roots = polishedRoots(causticEqSlice, 5, args = (gam, 0.1, 0.1, ax, ay), plot = True)
+# roots = polishedRoots(causticEqSlice, 5, 5, args = (alp, m, n, ax, ay), plot = True)
 # for root in roots:
-#     print(gain(roots, gam, ax, ay))
+#     print(GOAmplitude(root, rF2, lc, ax, ay))
 
 # Test whether phiA and phiB are equivalent
 

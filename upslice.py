@@ -6,23 +6,20 @@ from scipy.spatial import distance
 from scipy.interpolate import *
 from kdi import *
 
-def fieldCalc(roots, npoints, rF2, lc, ax, ay):
-    """ Calculates field for a list of roots of arbitrary dimensionality. """
-    nroots = roots.shape[1]
-    fields = np.zeros([nroots, npoints], dtype=complex)
-    for i in range(npoints):
-        for j in range(nroots):
-            fields[j][i] = GOfieldA(roots[i][j], rF2, lc, ax, ay)
-    return fields
+def findClosest(roots):
+    dist = pdist(roots)
+    mdist = np.min(dist)
+    dist = squareform(dist)
+    ij_min = np.where(dist == mdist)
+    return [ij_min[0], mdist]
 
-def phaseCalc(roots, npoints, rF2, lc, ax, ay):
-    """ Calculates phase for a list of roots of arbitrary dimensionality. """
-    nroots = roots.shape[1]
-    phis = np.zeros([nroots, npoints], dtype=complex)
+def obsCalc(func, roots, nroots, npoints, args = ()):
+    """ Calculates observable using observable function func for a list of roots of arbitrary dimensionality. Returns multidimensional array with shape [nroots, npoints]. """
+    obs = np.zeros([nroots, npoints], dtype = complex)
     for i in range(npoints):
         for j in range(nroots):
-            phis[j][i] = phi(roots[i][j], rF2, lc, ax, ay)
-    return phis
+            obs[j][i] = func(roots[i][j], *args)
+    return obs
 
 def lineVert(upxvec, m, n):
     """ Returns list of line vertices. """
@@ -51,35 +48,49 @@ def litAsymp(roots, phases, fields, sigs, rF2, lc, ax, ay):
         for i in range(npoints):
             amp[i] = GOAmplitude(roots[i][pos], rF2, lc, ax, ay)
         xi = (1.5 * np.abs(cphases.imag))**(2. / 3.)
-        u1 = 2*pi**0.5*amp * \
-            (xi)**0.25 * airy(xi)[0] * exp(1j*(cphases.real - sig*0.25*pi))
+        u1 = 2*pi**0.5*amp * (xi)**0.25 * airy(xi)[0] * exp(1j*(cphases.real - sig*0.25*pi))
         return u1
-
+    
+    
+    # merge = [findClosest(roots[0]), findClosest(roots[-1])] # find closest roots at each end
+    # if merge[0][1] < 0.3 and merge[1][1] < 0.3: # roots merge at both ends
+    #     mroot1, mroot2 = merge[0][0], merge[1][0] # set indices of merging roots
+    #     nmroots1 = list(set(range(nroots)) - set(mroot1)) # indices of non merging roots at one end
+    #     nmroots2 = list(set(range(nroots)) - set(mroot2)) # indices of non merging roots at other end
+    #     if mroot1 == mroot2: # same root merges at both ends
+    #         amp1, amp2 = np.abs(fields[mroot1[0]], np.abs(fields[mroot1[1]]))
+    #         phi1, phi2 = phases[mroot1[0]], phases[mroot1[1]]
+    #         # check for complex roots
+    #         others = np.zeros(len(amp1))
+    #         for index in nmroots1:
+    #             others = others + fields[index] # sum of fields not involved in merging
+    #         litG = helpAsympA(amp1, amp2, phi1, phi2, )
+    
     nroots = roots.shape[1]
-    if nroots == 3:  # just three real roots
-        cond1 = np.abs(roots[0][0][0] - roots[0][1][0]) < np.abs(roots[0][1][0] - roots[0][2][0])
-        cond2 = np.abs(roots[-1][0][0] - roots[-1][1][0]) < np.abs(roots[-1][1][0] - roots[-1][2][0])
-        if cond1 and cond2:  # first root merges with second root at both ends
-            litG = helpAsympA(np.abs(fields[0]), np.abs(fields[1]), phases[0], phases[1], fields[2], sigs[0])
-        elif not cond1 and not cond2:  # second root merges with third root at both ends
-            litG = helpAsympA(np.abs(fields[1]), np.abs(fields[2]), phases[1], phases[2], fields[0], sigs[0])
-        else:  # need to split in two
-            u1, u2, u3 = fields
-            u11, u12 = np.split(u1, 2)
-            U21, U22 = np.split(np.abs(u2), 2)
-            u31, u32 = np.split(u3, 2)
-            phi1, phi2, phi3 = phases
-            phi11, phi12 = np.split(phi1, 2)
-            phi21, phi22 = np.split(phi2, 2)
-            phi31, phi32 = np.split(phi3, 2)
-            if cond1 and not cond2:  # first root merges with second root at first end and second root merges with third root at other end
-                litG1 = helpAsympA(np.abs(u11), U21, phi11, phi21, u31, sigs[0])
-                litG2 = helpAsympA(U22, np.abs(u32), phi22, phi32, u12, sigs[0])
-                litG = np.concatenate((litG1, litG2))
-            else:  # second root merges with third root at first end and first root merges with second root at other end
-                litG1 = helpAsympA(U21, np.abs( u31), phi21, phi31, u11, sigs[0])
-                litG2 = helpAsympA(np.abs(u12), U22, phi12, phi22, u32, sigs[0])
-                litG = np.concatenate((litG1, litG2))
+    if nroots == 3: # just three real roots
+                cond1 = np.abs(roots[0][0][0] - roots[0][1][0]) < np.abs(roots[0][1][0] - roots[0][2][0])
+                cond2 = np.abs(roots[-1][0][0] - roots[-1][1][0]) < np.abs(roots[-1][1][0] - roots[-1][2][0])
+                if cond1 and cond2: # first root merges with second root at both ends
+                    litG = helpAsympA(np.abs(fields[0]), np.abs(fields[1]), phases[0], phases[1], fields[2], sigs[0])
+                elif not cond1 and not cond2: # second root merges with third root at both ends
+                    litG = helpAsympA(np.abs(fields[1]), np.abs(fields[2]), phases[1], phases[2], fields[0], sigs[0])
+                else: # need to split in two
+                    u1, u2, u3 = fields
+                    u11, u12 = np.split(u1, 2)
+                    U21, U22 = np.split(np.abs(u2), 2)
+                    u31, u32 = np.split(u3, 2)
+                    phi1, phi2, phi3 = phases
+                    phi11, phi12 = np.split(phi1, 2)
+                    phi21, phi22 = np.split(phi2, 2)
+                    phi31, phi32 = np.split(phi3, 2)
+                    if cond1 and not cond2: # first root merges with second root at first end and second root merges with third root at other end
+                        litG1 = helpAsympA(np.abs(u11), U21, phi11, phi21, u31, sigs[0])
+                        litG2 = helpAsympA(U22, np.abs(u32), phi22, phi32, u12, sigs[0])
+                        litG = np.concatenate((litG1, litG2))
+                    else: # second root merges with third root at first end and first root merges with second root at other end
+                        litG1 = helpAsympA(U21, np.abs(u31), phi21, phi31, u11, sigs[0])
+                        litG2 = helpAsympA(np.abs(u12), U22, phi12, phi22, u32, sigs[0])
+                        litG = np.concatenate((litG1, litG2))
     elif nroots == 4:  # three real roots and one complex root
         # second root merges with third root
         if np.abs(roots[0][1][0] - roots[0][2][0]) < np.abs(roots[0][0][0] - roots[0][1][0]):
@@ -110,7 +121,6 @@ def litAsymp(roots, phases, fields, sigs, rF2, lc, ax, ay):
 def darkAsymp(roots, phases, fields, sigs, rF2, lc, ax, ay):
 
     def helpAsymp(sig, pos):
-        npoints = len(roots)
         cphases = phases[pos]
         amp = np.zeros(npoints)
         for i in range(npoints):
@@ -120,18 +130,160 @@ def darkAsymp(roots, phases, fields, sigs, rF2, lc, ax, ay):
         return u1
 
     nroots = roots.shape[1]
+    npoints = len(roots)
 
     if nroots == 2:
         u1 = helpAsymp(sigs[0], 1)
         return np.abs(u1 + fields[0])**2
     else:
-        u1 = helpAsymp(sigs[1], 1)
-        if ax == ay:
-            u2 = helpAsymp(sigs[1], 2)
-        else:
-            u2 = helpAsymp(sigs[2], 2)
-        return np.abs(u1 + u2 + fields[0])**2
+            u1 = helpAsymp(sigs[1], 1)
+            if ax == ay:
+                if np.around(roots[0][1][0].real, 3) != np.around(roots[0][2][0].real, 3):
+                    # print([roots[0][1][0].real, roots[0][2][0].real])
+                    u2 = helpAsymp(sigs[1], 2)
+                else:
+                    u2 = np.zeros(npoints)
+            else:
+                u2 = helpAsymp(sigs[2], 2)
+            return np.abs(u1 + u2 + fields[0])**2
 
+def planeSliceTOA(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints):
+    """ Plots TOA perturbation for slice across the u'-plane for given lens parameters, observation frequency, uxmax, slope m and offset n. Also shows path across the plane with respect with the caustic curves. """
+    
+    def findRealRoots(segs):
+        """ Finds all real roots of the lens equation as a function of u' coordinates given in segs[i]. Unlike rootFinder, finds the initial set of roots at the middle of segs[i] and iterates forward and backwards. rootFinder, on the other hand, starts from the beginning and moves forward. This function is able to find roots that are much closer to the caustic than rootFinder."""
+        allroots = []
+        for i in range(len(segs)):
+            temp0 = polishedRoots(lensEq, 2*uxmax, 2*uymax, args = (segs[i][npoints/2], coeff))
+            nsolns = len(temp0)
+            roots = np.zeros([npoints, nsolns, 2])
+            roots[npoints/2] = temp0
+            for j in np.flipud(range(npoints/2 + 1)):
+                for k in range(nsolns):
+                    temp = op.root(lensEq, roots[j][k], args = (segs[i][j-1], coeff))
+                    if temp.success:
+                        roots[j-1][k] = temp.x
+                    else:
+                        print('Error')
+                        print(segs[i][j])
+                        print(temp)
+            for j in range(npoints/2 + 1, npoints):
+                for k in range(nsolns):
+                    temp = op.root(lensEq, roots[j-1][k], args = (segs[i][j], coeff))
+                    if temp.success:
+                        roots[j][k] = temp.x
+                    else:
+                        print('Error')
+                        print(segs[i][j])
+                        print(temp)
+            allroots.append(roots)
+        return allroots
+    
+    # Calculate coefficients
+    rF2 = rFsqr(dso, dsl, f)
+    uF2x, uF2y = rF2*np.array([1./ax**2, 1./ay**2])
+    lc = lensc(dm, f)
+    alp = rF2*lc
+    coeff = alp*np.array([1./ax**2, 1./ay**2])
+    tg0 = tg0coeff(dso, dsl)
+    tdm0 = tdm0coeff(dm, f)
+
+    # Calculate caustic intersections
+    ucross = polishedRoots(causticEqSlice, uxmax, uymax, args=(alp, m, n, ax, ay))
+    ncross = len(ucross)
+    upcross = mapToUp(ucross.T, alp, ax, ay)
+    p = np.argsort(upcross[0])
+    upcross = upcross.T[p]
+    ucross = ucross[p]
+    # print(upcross)
+    
+    # Set up quantities for proper u' plane slicing
+    ymin = -m*uxmax + n
+    ymax = m*uxmax + n
+    if ymin < -uymax:
+        xmin = (-uymax - n)/m
+        ymin = m*xmin + n
+    else:
+        xmin = -uxmax
+    if ymax > uymax:
+        xmax = (uymax - n)/m
+        ymax = m*xmax + n
+    else:
+        xmax = uxmax
+        
+    cdist = xmax*1e-6
+    
+    bound = np.insert(upcross, 0, np.array([[xmin, ymin]]), axis = 0)
+    bound = np.append(bound, np.array([[xmax, ymax]]), axis = 0)
+    upxvecs = [np.linspace(bound[i-1][0] + cdist, bound[i][0] - cdist, npoints) for i in range(1, ncross + 2)]
+    segs = np.asarray([lineVert(upx, m, n) for upx in upxvecs])
+    allroots = findRealRoots(segs)
+    nsolns = [len(roots[0]) for roots in allroots]
+    print(nsolns)
+    # print(allroots)
+    
+    # Calculate TOAs
+    alltoas = []
+    for i in range(len(allroots)):
+        toas = obsCalc(deltatA, allroots[i], nsolns[i], npoints, args = (tg0, tdm0, alp, ax, ay)).real
+        alltoas.append(toas)
+    
+    # Plots
+    fig = plt.figure(figsize=(15, 10))
+    grid = gs.GridSpec(2, 2, width_ratios=[4, 1])
+    # grid.update(hspace=mincdist)
+    ax0 = plt.subplot(grid[1:, 1])
+    ax1 = plt.subplot(grid[0, 1])
+    
+    rx = np.linspace(-uxmax, uxmax, 1000) # Plot caustic surfaces
+    ry = np.linspace(-uxmax, uxmax, 1000)
+    uvec = np.meshgrid(rx, ry)
+    ucaus = causCurve(uvec, coeff)
+    cs = ax1.contour(rx, ry, ucaus, levels = [0, np.inf], linewidths = 0)
+    paths = cs.collections[0].get_paths()
+    uppaths = []
+    for p in paths:
+        cuvert = np.array(p.vertices).T
+        upx, upy = mapToUp(cuvert, alp, ax, ay)
+        ax1.plot(upx, upy, color = 'blue')
+    ax1.plot(np.linspace(xmin, xmax, 10), np.linspace(ymin, ymax, 10), color = 'green')
+    ax1.scatter(upcross.T[0], upcross.T[1], color = 'green')
+    ax1.set_xlabel(r"$u'_x$")
+    ax1.set_ylabel(r"$u'_y$")
+    ax1.set_xlim(-uxmax, uxmax)
+    # ax1.set_ylim(np.min(upy)*1.5, np.max(upy)*1.5)
+    ax1.set_title("Caustic curves")
+    ax1.set_aspect('equal', anchor = 'C')
+    ax1.grid()
+    
+    ax2 = plt.subplot(grid[:, 0]) # Plot results
+    colors = ['blue', 'red', 'green', 'orange', 'purple']
+    for i in range(len(upxvecs)):
+        zone = alltoas[i]
+        for j in range(len(zone)):
+            ax2.plot(upxvecs[i], zone[j], color = 'black')
+    ax2.set_ylabel(r'$\Delta t \: (\mu s)$')
+    ax2.set_xlabel(r"$u'_x$")
+    ax2.grid()
+    
+    # Create table
+    col_labels = ['Parameter', 'Value']
+    if np.abs(dm/pctocm) < 1:
+        dmlabel = "{:.2E}".format(Decimal(dm/pctocm))
+    else:
+        dmlabel = str(dm/pctocm)
+    tablevals = [[r'$d_{so} \: (kpc)$', np.around(dso/pctocm/kpc, 2)], [r'$d_{sl} \: (kpc)$', np.around(dsl/pctocm/kpc, 2)], [r'$a_x \: (AU)$', np.around(ax/autocm, 2)], [r'$a_y \: (AU)$', np.around(ay/autocm, 2)], [r'$DM_l \: (pc \, cm^{-3})$', dmlabel], [r"$\nu$ (GHz)", f/GHz], ['Slope', m], ['Offset', n]]
+    ax0.axis('tight')
+    ax0.axis('off')
+    table = ax0.table(cellText = tablevals, colWidths = [0.25, 0.25], colLabels = col_labels, loc = 'center')
+    table.auto_set_font_size(False)
+    table.set_fontsize(14)
+    table.scale(3.2, 3.2)
+    
+    plt.show()
+    return
+    
+    
 def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 100, gsizex = 2048, gsizey = 2048):
     """ Plots gain for slice across the u'-plane for given lens parameters, observation frequency, uxmax, slope m and offset n. Compares it to the gain given by solving the Kirchhoff diffraction integral using convolution. Plots the slice gain and the entire u' plane gain. """
 
@@ -231,7 +383,7 @@ def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 100, gsiz
         litG = litAsymp(allroots[1], allphases[1], allfields[1], sigs, rF2, lc, ax, ay)
         darkG1 = darkAsymp(allroots[0], allphases[0], allfields[0], sigs, rF2, lc, ax, ay)
         darkG2 = darkAsymp(allroots[2], allphases[2], allfields[2], sigs, rF2, lc, ax, ay)
-        interp = interp1d(upxvecs.flatten(), np.concatenate((darkG1, litG, darkG2)), kind = 'cubic', fill_value = 'extrapolate')
+        interp = UnivariateSpline(upxvecs.flatten(), np.concatenate((darkG1, litG, darkG2)), s = 0)
     else:
         if dm > 0:
             litG1 = litAsymp(allroots[1], allphases[1], allfields[1], sigs, rF2, lc, ax, ay)
@@ -239,14 +391,14 @@ def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 100, gsiz
             darkG1 = darkAsymp(allroots[0], allphases[0], allfields[0], sigs, rF2, lc, ax, ay)
             darkG2 = darkAsymp(allroots[2], allphases[2], allfields[2], sigs, rF2, lc, ax, ay)
             darkG3 = darkAsymp(allroots[4], allphases[4], allfields[4], sigs, rF2, lc, ax, ay)
-            interp = interp1d(upxvecs.flatten(), np.concatenate((darkG1, litG1, darkG2, litG2, darkG3)), kind = 'cubic', fill_value = 'extrapolate')
+            interp = UnivariateSpline(upxvecs.flatten(), np.concatenate((darkG1, litG1, darkG2, litG2, darkG3)), s = 0)
         else:
             litG1 = litAsymp(allroots[1], allphases[1], allfields[1], sigs, rF2, lc, ax, ay)
             litG2 = litAsymp(allroots[2], allphases[2], allfields[2], sigs, rF2, lc, ax, ay)
             litG3 = litAsymp(allroots[3], allphases[3], allfields[3], sigs, rF2, lc, ax, ay)
             darkG1 = darkAsymp(allroots[0], allphases[0], allfields[0], sigs, rF2, lc, ax, ay)
             darkG2 = darkAsymp(allroots[4], allphases[4], allfields[4], sigs, rF2, lc, ax, ay)
-            interp = interp1d(upxvecs.flatten(), np.concatenate((darkG1, litG1, litG2, litG3, darkG2)), kind = 'cubic', fill_value = 'extrapolate')
+            interp = UnivariateSpline(upxvecs.flatten(), np.concatenate((darkG1, litG1, litG2, litG3, darkG2)), s = 0)
 
     finx = np.linspace(xmin, xmax, 4*npoints)
     asymG = interp(finx)

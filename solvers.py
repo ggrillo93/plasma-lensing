@@ -223,6 +223,7 @@ def rootFinder(upvec, nsoln, dm, cdist, ucross, upcross, ncross, uxmax, uymax, c
         npoints = len(upvec)
         roots = np.zeros([npoints, nreal + ncomplex, 2], dtype=complex)
         realroots = polishedRoots(lensEq, 1.5*uxmax, 1.5*uymax, args=(upvec[0], coeff))
+        print(realroots)
         # print(realroots)
         if nreal > 1:
             p = np.argsort(realroots.T[0])
@@ -248,11 +249,9 @@ def rootFinder(upvec, nsoln, dm, cdist, ucross, upcross, ncross, uxmax, uymax, c
             for i in range(1, npoints):
                 # find first complex root along upvec
                 prevcomp = roots[i-1][nreal]
-                tempcomp = op.root(compLensEq, [
-                                    prevcomp[0].real, prevcomp[0].imag, prevcomp[1].real, prevcomp[1].imag], args=(upvec[i], coeff))
+                tempcomp = op.root(compLensEq, [prevcomp[0].real, prevcomp[0].imag, prevcomp[1].real, prevcomp[1].imag], args=(upvec[i], coeff))
                 if tempcomp.success:
-                    roots[i][nreal] = np.array(
-                        [tempcomp.x[0] + 1j*tempcomp.x[1], tempcomp.x[2] + 1j*tempcomp.x[3]])
+                    roots[i][nreal] = np.array([tempcomp.x[0] + 1j*tempcomp.x[1], tempcomp.x[2] + 1j*tempcomp.x[3]])
                 else:
                     print('Error finding complex root')
                     print(upvec[i])
