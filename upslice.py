@@ -11,7 +11,8 @@ from kdi import *
 #        - Clean up.
 #        - Parallelize root finding, do convolution using GPU/Theano.
 
-def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 100, gsizex = 2048, gsizey = 2048):
+@profile
+def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 5000, gsizex = 2048, gsizey = 2048):
     """ Plots gain for slice across the u'-plane for given lens parameters, observation frequency, uxmax, slope m and offset n. """
 
     def findComp(upvec):
