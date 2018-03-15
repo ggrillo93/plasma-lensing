@@ -9,7 +9,6 @@ from kdi import *
 # planeSliceG(8., 8., dso, dsl, f, dm, 1., 3., ax, ay, gsizex = 1.5*2048, gsizey = 1.5*2048)
 
 # Test cases
-@profile
 def runTests():
     dso, dsl = np.array([1.1, 0.55])*kpc*pctocm
     f = 0.8*GHz
@@ -19,24 +18,24 @@ def runTests():
     gsize = np.array([2048, 1.5*2048, 2*2048])
     lims = np.array([1.5, 2., 3., 4., 4.5, 8.])
     scales = autocm*np.array([0.02, 0.021, 0.022, 0.025, 0.03, 0.04, 0.06, 0.08])
-    # planeSliceG(lims[1], lims[1], dso, dsl, f, dm[0], m[2], n[2], scales[0], scales[0])
-    # planeSliceG(lims[2], lims[2], dso, dsl, f, dm[1], m[2], n[2], scales[0], scales[0])
-    # print(gsize[1])
-    # planeSliceG(lims[-1], lims[-1], dso, dsl, f, dm[-2], m[2], n[4], scales[0], scales[0], gsizex = gsize[1], gsizey = gsize[1])
-    # planeSliceG(lims[-2], lims[-2], dso, dsl, f, dm[-1], m[2], n[-3], scales[-3], scales[-3], gsizex = gsize[-1], gsizey = gsize[-1])
-    # planeSliceG(lims[0], lims[0], dso, dsl, f, dm[0], m[1], n[1], scales[0], scales[1])
-    # planeSliceG(lims[0], lims[0], dso, dsl, f, dm[0], m[1], n[1], scales[0], scales[2])
-    # planeSliceG(lims[0], lims[0], dso, dsl, f, dm[0], m[1], n[0], scales[0], scales[3])
-    # planeSliceG(lims[2], lims[1], dso, dsl, f, dm[1], m[1], n[0], scales[0], scales[3])
-    # planeSliceG(lims[3], lims[2], dso, dsl, f, dm[2], m[1], n[0], scales[4], scales[5], gsizex = gsize[1], gsizey = gsize[1])
-    # planeSliceG(lims[-2], lims[-2], dso, dsl, f, -dm[1], m[1], n[0], scales[0], scales[0])
-    # planeSliceG(lims[-2], lims[-2], dso, dsl, f, -dm[1], m[1], n[1], scales[0], scales[0])
-    # planeSliceG(lims[-2], lims[-2], dso, dsl, f, -dm[2], m[1], n[0], scales[-3], scales[-3], gsizex = gsize[1], gsizey = gsize[1])
-    planeSliceG(lims[-3], lims[-4], dso, dsl, f, -dm[2], m[0], n[0], scales[-3], scales[-1], gsizex = gsize[1], gsizey = gsize[1])
-    planeSliceG(lims[-3], lims[-4], dso, dsl, f, -dm[2], m[-1], n[3], scales[-3], scales[-1], gsizex = gsize[1], gsizey = gsize[1])
-    planeSliceG(lims[2], lims[2], dso, dsl, f, -dm[0], m[[2], n[-3], scales[0], scales[0]])
-    planeSliceG(lims[-1], lims[-1], dso, dsl, f, -dm[1], m[2], n[-1], scales[0], scales[0])
-    planeSliceG(lims[-1], lims[-1], dso, dsl, f, 4e-6*pctocm, m[2], n[-1], gsizex = gsize[1], gsizey = gsize[1])
+    planeSliceG(lims[1], lims[1], dso, dsl, f, dm[0], m[2], n[2], scales[0], scales[0])
+    planeSliceG(lims[2], lims[2], dso, dsl, f, dm[1], m[2], n[2], scales[0], scales[0])
+    print(gsize[1])
+    planeSliceG(lims[-1], lims[-1], dso, dsl, f, dm[-2], m[2], n[4], scales[0], scales[0], gsizex = gsize[1], gsizey = gsize[1])
+    planeSliceG(lims[-2], lims[-2], dso, dsl, f, dm[-1], m[2], n[-3], scales[-3], scales[-3], gsizex = gsize[-1], gsizey = gsize[-1])
+    planeSliceG(lims[0], lims[0], dso, dsl, f, dm[0], m[1], n[1], scales[0], scales[1])
+    planeSliceG(lims[0], lims[0], dso, dsl, f, dm[0], m[1], n[1], scales[0], scales[2])
+    planeSliceG(lims[0], lims[0], dso, dsl, f, dm[0], m[1], n[0], scales[0], scales[3])
+    planeSliceG(lims[2], lims[1], dso, dsl, f, dm[1], m[1], n[0], scales[0], scales[3])
+    planeSliceG(lims[3], lims[2], dso, dsl, f, dm[2], m[1], n[0], scales[4], scales[5], gsizex = gsize[1], gsizey = gsize[1])
+    planeSliceG(lims[-2], lims[-2], dso, dsl, f, -dm[1], m[1], n[0], scales[0], scales[0])
+    planeSliceG(lims[-2], lims[-2], dso, dsl, f, -dm[1], m[1], n[1], scales[0], scales[0])
+    planeSliceG(lims[-2], lims[-2], dso, dsl, f, -dm[2], m[1], n[0], scales[-3], scales[-3], gsizex = gsize[1], gsizey = gsize[1])
+    planeSliceG(lims[-3], lims[-4], dso, dsl, f, -dm[2], m[0], n[0], scales[-3], scales[-1], gsizex = gsize[2], gsizey = gsize[2])
+    planeSliceG(lims[-3], lims[-4], dso, dsl, f, -dm[2], m[-1], n[3], scales[-3], scales[-1], gsizex = gsize[2], gsizey = gsize[2])
+    planeSliceG(lims[2], lims[2], dso, dsl, f, -dm[0], m[2], n[-3], scales[0], scales[0])
+    planeSliceG(lims[-2], lims[-2], dso, dsl, f, -dm[1], m[2], n[-1], scales[0], scales[0])
+    planeSliceG(lims[-2], lims[-2], dso, dsl, f, 4e-6*pctocm, m[2], n[-1], scales[-4], scales[-4], gsizex = gsize[1], gsizey = gsize[1])
     planeSliceG(lims[2], lims[2], dso, dsl, f, -dm[-1], m[2], n[-2], scales[-2], scales[-2], gsizex = gsize[-1], gsizey = gsize[-1])
     return
 

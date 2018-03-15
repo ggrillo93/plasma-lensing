@@ -292,7 +292,7 @@ def planeSliceTOA(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints):
     plt.show()
     return
     
-@profile    
+# @profile    
 def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 4000, gsizex = 2048, gsizey = 2048):
     """ Plots gain for slice across the u'-plane for given lens parameters, observation frequency, uxmax, slope m and offset n. Compares it to the gain given by solving the Kirchhoff diffraction integral using convolution. Plots the slice gain and the entire u' plane gain. """
 
