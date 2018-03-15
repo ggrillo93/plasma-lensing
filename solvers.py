@@ -98,7 +98,7 @@ def causPlotter(uxmax, uymax, alp, ax, ay, m = 1000, n = 1000):
 # General 2D root finding
 
 def findRoots(func, uxmax, uymax, args = (), N = 500, plot = False):
-    """ Finds all roots of a 2D function in a window of width 2*umax centered at the origin by locating contour plot intersections. func must be a 2D vector function that returns a 2D vector. Do not use to solve lens equation for upvec = [0, 0], negative DM and symmetric lens. Appears to work well, but accuracy is not as good as SciPy's "root" function. """
+    """ Finds all real roots of a 2D function in a window of width 2*umax centered at the origin by locating contour plot intersections. func must be a 2D vector function that returns a 2D vector. Do not use to solve lens equation for upvec = [0, 0], negative DM and symmetric lens. Appears to work well, but accuracy is not as good as SciPy's "root" function. """
 
     def findIntersection(p1, p2):
         v1 = p1.vertices
@@ -176,128 +176,209 @@ def checkRoot(func, soln, args = ()):
 
 # Root finding along a set of coordinates
 
-def rootFinder(upvec, nsoln, dm, cdist, ucross, upcross, ncross, uxmax, uymax, coeff):
-    """ Solves the lens equation for every pair of points in the u'-plane contained in upvec, given expected number of solutions. """
+def rootFinder(segs, nreal, ncomplex, npoints, ucross, uxmax, uymax, coeff):
+    """ Solves the lens equation for every pair of points in the u'-plane contained in upvec, given expected number of real and complex solutions. """
     
-    def findComp(upvec):
-        """ Finds appropriate complex ray right next to caustic boundary. """
-
-        def chooseRay(ucross):
-            imguess = np.linspace(-1, 1, 200)
-            for guess in imguess:
-                croot = op.root(compLensEq, [ucross[0], guess, ucross[1], guess], args=(upvec, coeff))
-                # print(croot)
-                # check that the root finder finds the correct complex ray
-                if croot.success and np.abs(croot.x[1]) > 0.001*np.abs(croot.x[0]) and np.abs(croot.x[0] - ucross[0]) < 1.:
-                    print([ucross, croot.x])
-                    croot1 = [croot.x[0] + 1j*croot.x[1],
-                            croot.x[2] + 1j*croot.x[3]]
-                    return croot1
-                elif croot.success:  # for debugging purposes
-                    pass
-                    # print([ucross, croot.x])
-            print('No complex ray found')
-            return 0
-
-        if upvec[0] < upcross[0][0]:
-            return chooseRay(ucross[0])
-        elif upvec[0] > upcross[-1][0]:
-            return chooseRay(ucross[-1])
-        else:  # necessarily four caustic crossings
-            if dm < 0:  # negative dm
-                # region in between first and second caustic crossing
-                if upvec[0] > upcross[0][0] and upvec[0] < upcross[1][0]:
-                    return chooseRay(ucross[1])
-                else:  # region in between third and fourth caustic crossings
-                    return chooseRay(ucross[2])
+    def findFirstComp(ucross, uppoint):
+        imguess = np.linspace(-1, 1, 200)
+        for guess in imguess:
+            croot = op.root(compLensEq, [ucross[0], guess, ucross[1], guess], args=(uppoint, coeff))
+            # print(croot)
+            # check that the root finder finds the correct complex ray
+            if croot.success and np.abs(croot.x[1]) > 1e-6*np.abs(croot.x[0]) and np.abs(croot.x[0] - ucross[0]) < 0.5:
+                print([ucross, croot.x])
+                croot1 = [croot.x[0] + 1j*croot.x[1], croot.x[2] + 1j*croot.x[3]]
+                return croot1
+            elif croot.success:  # for debugging purposes
+                pass
+                # print([ucross, croot.x])
+        print('No complex ray found')
+        return 0
+    
+    def findAllComp(roots, seg, pos):
+        for j in range(1, npoints):
+            prevcomp = roots[j-1][pos]
+            tempcomp = op.root(compLensEq, [prevcomp[0].real, prevcomp[0].imag, prevcomp[1].real, prevcomp[1].imag], args=(seg[j], coeff))
+            if tempcomp.success:
+                roots[j][pos] = np.array([tempcomp.x[0] + 1j*tempcomp.x[1], tempcomp.x[2] + 1j*tempcomp.x[3]])
             else:
-                # need to distinguish between point right after second caustic and point right before third caustic
-                if (upvec[0] - upcross[1][0] > 2*cdist):
-                    return chooseRay(ucross[2])
-                else:
-                    return chooseRay(ucross[1])
-
-    def rootHelper(upvec, nreal, ncomplex):
-        """ Helper function for rootFinder. """
-        
-        npoints = len(upvec)
-        roots = np.zeros([npoints, nreal + ncomplex, 2], dtype=complex)
-        realroots = polishedRoots(lensEq, 1.5*uxmax, 1.5*uymax, args=(upvec[0], coeff))
-        print(realroots)
-        # print(realroots)
-        if nreal > 1:
-            p = np.argsort(realroots.T[0])
-            realroots = realroots[p]
-        for i in range(nreal):
-            roots[0][i] = realroots[i]
-        for i in range(1, npoints):
-            for j in range(nreal):  # find real roots along upvec
-                tempr = op.root(
-                    lensEq, roots[i-1][j].real, args=(upvec[i], coeff))
-                if tempr.success:
-                    roots[i][j] = tempr.x
-                else:
-                    print('Error finding real root')
-                    print(upvec[i])
-                    roots[i][j] = roots[i-1][j]
-
-        if ncomplex > 0:
-            if nreal == 3 and upvec[-1][0] < upcross[1][0]:
-                roots = np.flipud(roots)
-                upvec = np.flipud(upvec)
-            roots[0][nreal] = findComp(upvec[0])
-            for i in range(1, npoints):
-                # find first complex root along upvec
-                prevcomp = roots[i-1][nreal]
-                tempcomp = op.root(compLensEq, [prevcomp[0].real, prevcomp[0].imag, prevcomp[1].real, prevcomp[1].imag], args=(upvec[i], coeff))
-                if tempcomp.success:
-                    roots[i][nreal] = np.array([tempcomp.x[0] + 1j*tempcomp.x[1], tempcomp.x[2] + 1j*tempcomp.x[3]])
-                else:
-                    print('Error finding complex root')
-                    print(upvec[i])
-                    roots[i][nreal] = roots[i-1][nreal]
-            if nreal == 3 and upvec[-1][0] < upcross[1][0]:
-                roots = np.flipud(roots)
-
-            if ncomplex == 2:
-                # find second complex ray by iterating from other side
-                upvec = np.flipud(upvec)
-                roots = np.flipud(roots)
-                roots[0][nreal + 1] = findComp(upvec[0])
-                for i in range(1, len(upvec)):
-                    prevcomp = roots[i-1][nreal + 1]
-                    tempcomp = op.root(compLensEq, [
-                                        prevcomp[0].real, prevcomp[0].imag, prevcomp[1].real, prevcomp[1].imag], args=(upvec[i], coeff))
-                    if tempcomp.success:
-                        roots[i][nreal + 1] = np.array(
-                            [tempcomp.x[0] + 1j*tempcomp.x[1], tempcomp.x[2] + 1j*tempcomp.x[3]])
-                    else:
-                        print('Error finding complex root')
-                        print(upvec[i])
-                roots = np.flipud(roots)
-
+                print('Error finding complex root')
+                print(seg[j])
+                roots[j][pos] = roots[j-1][pos]
         return roots
+    
+    allroots = []
+    for i in range(len(segs)):
+        seg = segs[i]
+        sreal = polishedRoots(lensEq, 2*uxmax, 2*uymax, args = (seg[npoints/2], coeff)) # starting real roots
+        # print(sreal)
+        roots = np.zeros([npoints, int(nreal[i] + ncomplex[i]), 2], dtype = complex)
+        for j in range(int(nreal[i])):
+            roots[npoints/2][j] = sreal[j]
+        for j in np.flipud(range(1, npoints/2 + 1)): # find real roots from middle point towards starting point
+            for k in range(int(nreal[i])):
+                temp = op.root(lensEq, roots[j][k].real, args = (seg[j-1], coeff))
+                if temp.success:
+                    roots[j-1][k] = temp.x
+                else:
+                    print('Error 1')
+                    print(seg[j])
+                    print(temp)
+                    print(roots[j].real)
+                    roots[j-1][k] = roots[j][k]
+        for j in range(npoints/2 + 1, npoints): # find real roots from middle point towards end point
+            for k in range(int(nreal[i])):
+                temp = op.root(lensEq, roots[j-1][k].real, args = (seg[j], coeff))
+                if temp.success:
+                    roots[j][k] = temp.x
+                else:
+                    print('Error 2')
+                    print(seg[j])
+                    print(temp)
+                    print(roots[j-1].real)
+                    roots[j][k] = roots[j-1][k]
+        if ncomplex[i] > 0:
+            p = i - 1
+            if i < len(segs)/2: # need to flip
+                seg = np.flipud(seg)
+                roots = np.flipud(roots)
+                p = i
+            # print(p)
+            scomp = findFirstComp(ucross[p], seg[0])
+            roots[0][int(nreal[i])] = scomp
+            roots = findAllComp(roots, seg, int(nreal[i]))
+            if i < len(segs)/2:
+                seg = np.flipud(seg) # flip back
+                roots = np.flipud(roots)
+            if ncomplex[i] == 2:
+                seg = np.flipud(seg)
+                roots = np.flipud(roots)
+                scomp = findFirstComp(ucross[p+1], seg[0])
+                roots[0][int(nreal[i]) + 1] = scomp
+                roots = findAllComp(roots, seg, int(nreal[i]) + 1)
+                roots = np.flipud(roots)
+        allroots.append(roots)
+    return allroots
+        
+    # def findComp(upvec):
+    #     """ Finds appropriate complex ray right next to caustic boundary. """
 
-    print(nsoln)
+    #     def chooseRay(ucross):
+    #         imguess = np.linspace(-1, 1, 200)
+    #         for guess in imguess:
+    #             croot = op.root(compLensEq, [ucross[0], guess, ucross[1], guess], args=(upvec, coeff))
+    #             # print(croot)
+    #             # check that the root finder finds the correct complex ray
+    #             if croot.success and np.abs(croot.x[1]) > 0.001*np.abs(croot.x[0]) and np.abs(croot.x[0] - ucross[0]) < 1.:
+    #                 print([ucross, croot.x])
+    #                 croot1 = [croot.x[0] + 1j*croot.x[1],
+    #                         croot.x[2] + 1j*croot.x[3]]
+    #                 return croot1
+    #             elif croot.success:  # for debugging purposes
+    #                 pass
+    #                 # print([ucross, croot.x])
+    #         print('No complex ray found')
+    #         return 0
 
-    if nsoln == 1:
-        # one real root and one/two complex roots
-        # check whether its necessary to iterate left to right or right to left
-        # greatest upx-value of upvec is less than upx-value of first caustic, so iterate right to left
-        if upvec[-1][0] < upcross[0][0]:
-            upvec = np.flipud(upvec)
-            roots = rootHelper(upvec, 1, 1)
-            roots = np.flipud(roots)  # return to left-right ordering
-        # middle dark side region, need two complex rays
-        elif ncross == 4 and upvec[0][0] > upcross[1][0] and upvec[-1][0] < upcross[2][0]:
-            roots = rootHelper(upvec, 1, 2)
-        else:
-            roots = rootHelper(upvec, 1, 1)
-    elif dm < 0 and ncross == 4 and nsoln == 3:  # three real roots and one complex root
-        roots = rootHelper(upvec, 3, 1)
-    else:  # three or five real roots, no complex roots
-        roots = rootHelper(upvec, nsoln, 0)
-    return roots
+    #     if upvec[0] < upcross[0][0]:
+    #         return chooseRay(ucross[0])
+    #     elif upvec[0] > upcross[-1][0]:
+    #         return chooseRay(ucross[-1])
+    #     else:  # necessarily four caustic crossings
+    #         if dm < 0:  # negative dm
+    #             # region in between first and second caustic crossing
+    #             if upvec[0] > upcross[0][0] and upvec[0] < upcross[1][0]:
+    #                 return chooseRay(ucross[1])
+    #             else:  # region in between third and fourth caustic crossings
+    #                 return chooseRay(ucross[2])
+    #         else:
+    #             # need to distinguish between point right after second caustic and point right before third caustic
+    #             if (upvec[0] - upcross[1][0] > 2*cdist):
+    #                 return chooseRay(ucross[2])
+    #             else:
+    #                 return chooseRay(ucross[1])
+
+    # def rootHelper(upvec, nreal, ncomplex):
+    #     """ Helper function for rootFinder. """
+        
+    #     npoints = len(upvec)
+    #     roots = np.zeros([npoints, nreal + ncomplex, 2], dtype=complex)
+    #     realroots = polishedRoots(lensEq, 1.5*uxmax, 1.5*uymax, args=(upvec[0], coeff))
+    #     print(realroots)
+    #     # print(realroots)
+    #     if nreal > 1:
+    #         p = np.argsort(realroots.T[0])
+    #         realroots = realroots[p]
+    #     for i in range(nreal):
+    #         roots[0][i] = realroots[i]
+    #     for i in range(1, npoints):
+    #         for j in range(nreal):  # find real roots along upvec
+    #             tempr = op.root(
+    #                 lensEq, roots[i-1][j].real, args=(upvec[i], coeff))
+    #             if tempr.success:
+    #                 roots[i][j] = tempr.x
+    #             else:
+    #                 print('Error finding real root')
+    #                 print(upvec[i])
+    #                 roots[i][j] = roots[i-1][j]
+
+    #     if ncomplex > 0:
+    #         if nreal == 3 and upvec[-1][0] < upcross[1][0]:
+    #             roots = np.flipud(roots)
+    #             upvec = np.flipud(upvec)
+    #         roots[0][nreal] = findComp(upvec[0])
+    #         for i in range(1, npoints):
+    #             # find first complex root along upvec
+    #             prevcomp = roots[i-1][nreal]
+    #             tempcomp = op.root(compLensEq, [prevcomp[0].real, prevcomp[0].imag, prevcomp[1].real, prevcomp[1].imag], args=(upvec[i], coeff))
+    #             if tempcomp.success:
+    #                 roots[i][nreal] = np.array([tempcomp.x[0] + 1j*tempcomp.x[1], tempcomp.x[2] + 1j*tempcomp.x[3]])
+    #             else:
+    #                 print('Error finding complex root')
+    #                 print(upvec[i])
+    #                 roots[i][nreal] = roots[i-1][nreal]
+    #         if nreal == 3 and upvec[-1][0] < upcross[1][0]:
+    #             roots = np.flipud(roots)
+
+    #         if ncomplex == 2:
+    #             # find second complex ray by iterating from other side
+    #             upvec = np.flipud(upvec)
+    #             roots = np.flipud(roots)
+    #             roots[0][nreal + 1] = findComp(upvec[0])
+    #             for i in range(1, len(upvec)):
+    #                 prevcomp = roots[i-1][nreal + 1]
+    #                 tempcomp = op.root(compLensEq, [
+    #                                     prevcomp[0].real, prevcomp[0].imag, prevcomp[1].real, prevcomp[1].imag], args=(upvec[i], coeff))
+    #                 if tempcomp.success:
+    #                     roots[i][nreal + 1] = np.array(
+    #                         [tempcomp.x[0] + 1j*tempcomp.x[1], tempcomp.x[2] + 1j*tempcomp.x[3]])
+    #                 else:
+    #                     print('Error finding complex root')
+    #                     print(upvec[i])
+    #             roots = np.flipud(roots)
+
+    #     return roots
+
+    # print(nsoln)
+
+    # if nsoln == 1:
+    #     # one real root and one/two complex roots
+    #     # check whether its necessary to iterate left to right or right to left
+    #     # greatest upx-value of upvec is less than upx-value of first caustic, so iterate right to left
+    #     if upvec[-1][0] < upcross[0][0]:
+    #         upvec = np.flipud(upvec)
+    #         roots = rootHelper(upvec, 1, 1)
+    #         roots = np.flipud(roots)  # return to left-right ordering
+    #     # middle dark side region, need two complex rays
+    #     elif ncross == 4 and upvec[0][0] > upcross[1][0] and upvec[-1][0] < upcross[2][0]:
+    #         roots = rootHelper(upvec, 1, 2)
+    #     else:
+    #         roots = rootHelper(upvec, 1, 1)
+    # elif dm < 0 and ncross == 4 and nsoln == 3:  # three real roots and one complex root
+    #     roots = rootHelper(upvec, 3, 1)
+    # else:  # three or five real roots, no complex roots
+    #     roots = rootHelper(upvec, nsoln, 0)
+    # return roots
 
 # Numerical derivatives
 

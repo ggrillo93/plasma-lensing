@@ -6,6 +6,14 @@ from scipy.spatial import distance
 from scipy.interpolate import *
 from kdi import *
 
+def difference(arr):
+    diff = np.ones(len(arr))
+    diff[0] = arr[0] - arr[1]
+    diff[-1] = arr[-1] - arr[-2]
+    for i in range(1, len(arr) - 1):
+        diff[i] = 2*arr[i] - arr[i-1] - arr[i+1]
+    return diff
+
 def findClosest(roots):
     dist = pdist(roots)
     mdist = np.min(dist)
@@ -110,11 +118,12 @@ def litAsymp(roots, phases, fields, sigs, rF2, lc, ax, ay):
         u51, u52 = np.split(u5, 2)
         phi1, phi2, phi3, phi4, phi5 = phases
         phi11, phi12 = np.split(phi1, 2)
+        phi21, phi22 = np.split(phi2, 2)
         phi31, phi32 = np.split(phi3, 2)
         phi41, phi42 = np.split(phi4, 2)
         phi51, phi52 = np.split(phi5, 2)
-        litG1 = helpAsympA(np.abs(u41), np.abs(u51), phi41, phi51, np.sum([u11, u21, u31], axis=0), sigs[1])
-        litG2 = helpAsympA(np.abs(u12), np.abs(u32), phi12, phi32, np.sum([u22, u42, u52], axis=0), sigs[1])
+        litG1 = helpAsympA(np.abs(u31), np.abs(u51), phi31, phi51, np.sum([u11, u21, u41], axis=0), sigs[1])
+        litG2 = helpAsympA(np.abs(u12), np.abs(u22), phi12, phi22, np.sum([u32, u42, u52], axis=0), sigs[1])
         litG = np.concatenate((litG1, litG2))
     return litG
 
@@ -215,7 +224,7 @@ def planeSliceTOA(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints):
     
     bound = np.insert(upcross, 0, np.array([[xmin, ymin]]), axis = 0)
     bound = np.append(bound, np.array([[xmax, ymax]]), axis = 0)
-    upxvecs = [np.linspace(bound[i-1][0] + cdist, bound[i][0] - cdist, npoints) for i in range(1, ncross + 2)]
+    upxvecs = np.asarray([np.linspace(bound[i-1][0] + cdist, bound[i][0] - cdist, npoints) for i in range(1, ncross + 2)])
     segs = np.asarray([lineVert(upx, m, n) for upx in upxvecs])
     allroots = findRealRoots(segs)
     nsolns = [len(roots[0]) for roots in allroots]
@@ -283,8 +292,8 @@ def planeSliceTOA(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints):
     plt.show()
     return
     
-    
-def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 100, gsizex = 2048, gsizey = 2048):
+@profile    
+def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 4000, gsizex = 2048, gsizey = 2048):
     """ Plots gain for slice across the u'-plane for given lens parameters, observation frequency, uxmax, slope m and offset n. Compares it to the gain given by solving the Kirchhoff diffraction integral using convolution. Plots the slice gain and the entire u' plane gain. """
 
     # Calculate coefficients
@@ -296,12 +305,13 @@ def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 100, gsiz
 
     # Calculate caustic intersections
     ucross = polishedRoots(causticEqSlice, uxmax, uymax, args = (alp, m, n, ax, ay))
+    plt.close()
     ncross = len(ucross)
     upcross = mapToUp(ucross.T, alp, ax, ay)
     p = np.argsort(upcross[0])
     upcross = upcross.T[p]
     ucross = ucross[p]
-    print(ucross)
+    print(upcross)
 
     # Calculate sign of second derivative at caustics
     sigs = np.zeros(ncross)
@@ -325,57 +335,46 @@ def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 100, gsiz
     xx = np.linspace(gridToPixel(xmin, uxmax, gsizex/2), gridToPixel(xmax, uxmax, gsizex/2) - 1, gsizex)
     yy = np.linspace(gridToPixel(ymin, uymax, gsizey/2), gridToPixel(ymax, uymax, gsizey/2) - 1, gsizey)
 
-    cdist = xmax*2e-3
+    cdist = uxmax/(np.abs(5*lc))
+    print(cdist)
 
-    if ncross == 2: # 2 dark regions with 1 image, 1 bright region with 3 images
-        # Create slice by segments
-        d1upx = np.linspace(xmin, upcross[0][0] - cdist, npoints) # d = dark, b = bright
-        bupx = np.linspace(upcross[0][0] + cdist, upcross[1][0] - cdist, npoints)
-        d2upx = np.linspace(upcross[1][0] + cdist, xmax, npoints)
-        upxvecs = np.array([d1upx, bupx, d2upx])
-        segs = np.asarray([lineVert(upx, m, n) for upx in upxvecs])
-        nsolns = np.array([1, 3, 1]) # Number of expected real solutions at each segment
-
-    elif ncross == 4:
-        if dm > 0: # Positive DM. 3 dark regions with 1 image, 2 bright regions with 3 images.
-            # Create slice by segments
-            d1upx = np.linspace(xmin, upcross[0][0] - cdist, npoints) # d = dark, b = bright
-            b1upx = np.linspace(upcross[0][0] + cdist, upcross[1][0] - cdist, npoints)
-            d2upx = np.linspace(upcross[1][0] + cdist, upcross[2][0] - cdist, npoints)
-            b2upx = np.linspace(upcross[2][0] + cdist, upcross[3][0] - cdist, npoints)
-            d3upx = np.linspace(upcross[3][0] + cdist, xmax, npoints)
-            upxvecs = np.array([d1upx, b1upx, d2upx, b2upx, d3upx])
-            segs = np.asarray([lineVert(upx, m, n) for upx in upxvecs])
-            nsolns = np.array([1, 3, 1, 3, 1])
-
-        if dm < 0: # Negative DM. 2 dark regions with 1 image, 2 bright regions with 3 images, 1 bright region with 5 images.
-            d1upx = np.linspace(xmin, upcross[0][0] - cdist, npoints) # d = dark, b = bright
-            b1upx = np.linspace(upcross[0][0] + cdist, upcross[1][0] - cdist, npoints)
-            b2upx = np.linspace(upcross[1][0] + cdist, upcross[2][0] - cdist, npoints)
-            b3upx = np.linspace(upcross[2][0] + cdist, upcross[3][0] - cdist, npoints)
-            d2upx = np.linspace(upcross[3][0] + cdist, xmax, npoints)
-            upxvecs = np.array([d1upx, b1upx, b2upx, b3upx, d2upx])
-            segs = np.asarray([lineVert(upx, m, n) for upx in upxvecs])
-            nsolns = np.array([1, 3, 5, 3, 1])
-
+    bound = np.insert(upcross, 0, np.array([[xmin, ymin]]), axis = 0) # set up boundaries
+    bound = np.append(bound, np.array([[xmax, ymax]]), axis = 0)
+    midpoints = [(bound[i] + bound[i+1])/2. for i in range(len(bound) - 1)] # find middle point between boundaries
+    nzones = len(midpoints)
+    nreal = np.zeros(nzones)
+    for i in range(nzones): # find number of roots at each midpoint
+        mpoint = midpoints[i]
+        nreal[i] = len(findRoots(lensEq, 2*uxmax, 2*uymax, args = (mpoint, coeff)))
+    upxvecs = np.array([np.linspace(bound[i-1][0] + cdist, bound[i][0] - cdist, npoints) for i in range(1, ncross + 2)]) # generate upx vector
+    # print(upxvecs)
+    segs = np.asarray([lineVert(upx, m, n) for upx in upxvecs]) # generate slice across plane
+    diff = difference(nreal) # determine number of complex solutions
+    ncomplex = np.ones(nzones)*100
+    for i in range(nzones):
+        if diff[i] == 0 or diff[i] == -2:
+            ncomplex[i] = 1
+        elif diff[i] == -4:
+            ncomplex[i] = 2
+        elif diff[i] == 4:
+            ncomplex[i] = 0
+    print(nreal)
+    print(ncomplex)
 
     # Solve lens equation at each coordinate
-    allroots = []
-    for i in range(len(nsolns)):
-        roots = rootFinder(segs[i], nsolns[i], dm, cdist, ucross, upcross, ncross, uxmax, uymax, coeff)
-        allroots.append(roots)
-    # print(allroots)
-
+    allroots = rootFinder(segs, nreal, ncomplex, npoints, ucross, uxmax, uymax, coeff)
+    # print(allroots[2])
+    
     # Calculate fields
     allfields = []
-    for roots in allroots:
-        fields = fieldCalc(roots, npoints, rF2, lc, ax, ay)
+    for i in range(nzones):
+        fields = obsCalc(GOfieldA, allroots[i], len(allroots[i][0]), npoints, args=(rF2, lc, ax, ay))
         allfields.append(fields)
 
     # Calculate phases
     allphases = []
-    for roots in allroots:
-        phis = phaseCalc(roots, npoints, rF2, lc, ax, ay)
+    for i in range(nzones):
+        phis = obsCalc(phi, allroots[i], len(allroots[i][0]), npoints, args=(rF2, lc, ax, ay))
         allphases.append(phis)
 
     # Construct uniform asymptotics
