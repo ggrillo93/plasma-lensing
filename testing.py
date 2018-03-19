@@ -18,9 +18,8 @@ def runTests():
     gsize = np.array([2048, 1.5*2048, 2*2048])
     lims = np.array([1.5, 2., 3., 4., 4.5, 8.])
     scales = autocm*np.array([0.02, 0.021, 0.022, 0.025, 0.03, 0.04, 0.06, 0.08])
-    planeSliceG(lims[1], lims[1], dso, dsl, f, dm[0], m[2], n[2], scales[0], scales[0])
+    planeSliceG(lims[1], lims[1], dso, dsl, f, dm[0], m[2], n[2], scales[0], scales[0], npoints = 500)
     planeSliceG(lims[2], lims[2], dso, dsl, f, dm[1], m[2], n[2], scales[0], scales[0])
-    print(gsize[1])
     planeSliceG(lims[-1], lims[-1], dso, dsl, f, dm[-2], m[2], n[4], scales[0], scales[0], gsizex = gsize[1], gsizey = gsize[1])
     planeSliceG(lims[-2], lims[-2], dso, dsl, f, dm[-1], m[2], n[-3], scales[-3], scales[-3], gsizex = gsize[-1], gsizey = gsize[-1])
     planeSliceG(lims[0], lims[0], dso, dsl, f, dm[0], m[1], n[1], scales[0], scales[1])
@@ -102,24 +101,6 @@ runTests()
 #     print('Phys gain 1 = ' + str(physGainA(root, rF2, lc, ax, ay)))
 #     #print('Phys gain 2 = ' + str(physGainB(root, rF2, lc, ax, ay)))
 
-# Test whether deltatA and deltatB are equivalent
-# upvec = [2.5, 1.]
-# roots = polishedRoots(lensEq, 5., args = (upvec, coeff))
-# tdm0 = c*re*dm/(2*pi*f**2)
-# dlo = dso - dsl
-# tg0 = dso/(2*c*dsl*dlo)
-#
-# for root in roots:
-#     print(deltatA(root, tg0, tdm0, gam, ax, ay))
-#     print(deltatB(root, upvec, tg0, tdm0, ax, ay))
-
-# Test whether deltaDMA and deltaDMB are equivalent
-# upvec = [0.1, 0.1]
-# roots = polishedRoots(lensEq, 5., args = (upvec, coeff), plot = True)
-# print(roots)
-# tdm0 = c*re*dm/(2*pi*f**2)
-# dlo = dso - dsl
-# tg0 = dso/(2*c*dsl*dlo)
 #
 # for root in roots:
 #     gain = GOgain(root, gam, ax, ay, absolute = False)

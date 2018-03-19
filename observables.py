@@ -22,20 +22,20 @@ def GOAmplitude(uvec, rF2, lc, ax, ay):
     return ans
 
 # Field
-#   @jit(nopython=True)
 def GOfieldA(uvec, rF2, lc, ax, ay):
-    """ Returns the geometrical optics field, ie. the geometrical optics amplitude multiplied by the phase factor. Includes only the first order term. """
+    """ Returns the elements of the geometrical optics field: the amplitude and the phase, including the phase shift as determined by the sign of the derivatives. """
     ux, uy = uvec
     alp = rF2*lc
     phi20 = ax**2/rF2 + lc*gauss20(ux, uy)
     phi02 = ay**2/rF2 + lc*gauss02(ux, uy)
     phi11 = lc*gauss11(ux, uy)
     sigma = np.sign(phi02)
-    # print(sigma)
     H = phi20*phi02 - phi11**2
     delta = np.sign(H)
-    ans = (ax*ay/rF2)*np.abs(H)**-0.5*exp(1j*(phi(uvec, rF2, lc, ax, ay) + pi*(delta + 1)*sigma*0.25)) # Cooke 1982
-    return ans
+    amp = (ax*ay/rF2)*np.abs(H)**-0.5
+    phase = phi(uvec, rF2, lc, ax, ay)
+    pshift = pi*(delta + 1)*sigma*0.25
+    return np.array([amp, phase, pshift])
 
 def GOfieldB(uvec, rF2, lc, ax, ay):
     """ Returns the geometrical optics field, including the second order term. """

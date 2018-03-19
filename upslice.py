@@ -2,10 +2,13 @@ from fundfunctions import *
 from observables import *
 from solvers import *
 from scipy.special import airy
-from scipy.spatial import distance
+from scipy.spatial.distance import *
 from scipy.interpolate import *
 from kdi import *
 
+def constructField(amp, phases, pshift):
+    return amp*exp(1j*(phases + pshift))
+    
 def difference(arr):
     diff = np.ones(len(arr))
     diff[0] = arr[0] - arr[1]
@@ -15,178 +18,153 @@ def difference(arr):
     return diff
 
 def findClosest(roots):
+    """ Returns index of the roots closest to each other and their distance. """
     dist = pdist(roots)
     mdist = np.min(dist)
     dist = squareform(dist)
     ij_min = np.where(dist == mdist)
     return [ij_min[0], mdist]
 
-def obsCalc(func, roots, nroots, npoints, args = ()):
-    """ Calculates observable using observable function func for a list of roots of arbitrary dimensionality. Returns multidimensional array with shape [nroots, npoints]. """
-    obs = np.zeros([nroots, npoints], dtype = complex)
-    for i in range(npoints):
-        for j in range(nroots):
-            obs[j][i] = func(roots[i][j], *args)
+def obsCalc(func, roots, nroots, npoints, ansdim, args = ()):
+    """ Calculates observable using observable function func for a list of roots of arbitrary dimensionality. Returns multidimensional array with shape [nroots, ansdim, npoints]. """
+    if ansdim == 1:
+        obs = np.zeros([nroots, npoints], dtype = complex)
+        for i in range(npoints):
+            for j in range(nroots):
+                obs[j][i] = func(roots[i][j], *args)
+    else:
+        obs = np.zeros([nroots, ansdim, npoints], dtype = complex)
+        for i in range(npoints):
+            for j in range(nroots):
+                ans = func(roots[i][j], *args)
+                for k in range(ansdim):
+                    obs[j][k][i] = ans[k]
     return obs
 
 def lineVert(upxvec, m, n):
     """ Returns list of line vertices. """
     return np.array([upxvec, m*upxvec + n]).T
-
-def litAsymp(roots, phases, fields, sigs, rF2, lc, ax, ay):
-    """ Constructs uniform asymptotic for bright region. """
-
-    def helpAsympA(U1, U2, phi1, phi2, u2, sig):
+    
+def uniAsymp(allroots, allfields, nreal, ncomplex, npoints, nzones, sigs):
+    """ Constructs the uniform asympotics for a segmented array of roots and their respective fields. """
+    def bright(A1, A2, phi1, phi2, sig):
         if phi1[0] > phi2[0]:
             pdiff = phi1 - phi2
-            g1 = U2 - U1
+            g1 = A2 - A1
         else:
             pdiff = phi2 - phi1
-            g1 = U1 - U2
+            g1 = A1 - A2
         chi = 0.5*(phi1 + phi2)
         xi = -(0.75*pdiff)**(2./3.)
         air = airy(xi)
-        u1 = pi**0.5 *((U1 + U2)*(-xi)**0.25*air[0] - 1j*g1*(-xi)** -0.25*air[1]) * exp(1j*(chi + sig*0.25*pi))
-        return np.abs(u1 + u2)**2
-
-    def helpAsympB(sig, pos):
-        npoints = len(roots)
-        cphases = phases[pos]
-        amp = np.zeros(npoints)
-        for i in range(npoints):
-            amp[i] = GOAmplitude(roots[i][pos], rF2, lc, ax, ay)
-        xi = (1.5 * np.abs(cphases.imag))**(2. / 3.)
-        u1 = 2*pi**0.5*amp * (xi)**0.25 * airy(xi)[0] * exp(1j*(cphases.real - sig*0.25*pi))
-        return u1
+        a1 = pi**0.5 *((A1 + A2)*(-xi)**0.25*air[0] - 1j*g1*(-xi)**-0.25*air[1]) * exp(1j*(chi + sig*0.25*pi))
+        return a1
+        
+    def dark(A, phi, sig):
+        xi = (1.5*np.abs(phi.imag))**(2./3.)
+        a1 = 2*pi**0.5*A*(xi)**0.25 * airy(xi)[0] * exp(1j*(phi.real + sig*0.25*pi))
+        return a1
     
-    
-    # merge = [findClosest(roots[0]), findClosest(roots[-1])] # find closest roots at each end
-    # if merge[0][1] < 0.3 and merge[1][1] < 0.3: # roots merge at both ends
-    #     mroot1, mroot2 = merge[0][0], merge[1][0] # set indices of merging roots
-    #     nmroots1 = list(set(range(nroots)) - set(mroot1)) # indices of non merging roots at one end
-    #     nmroots2 = list(set(range(nroots)) - set(mroot2)) # indices of non merging roots at other end
-    #     if mroot1 == mroot2: # same root merges at both ends
-    #         amp1, amp2 = np.abs(fields[mroot1[0]], np.abs(fields[mroot1[1]]))
-    #         phi1, phi2 = phases[mroot1[0]], phases[mroot1[1]]
-    #         # check for complex roots
-    #         others = np.zeros(len(amp1))
-    #         for index in nmroots1:
-    #             others = others + fields[index] # sum of fields not involved in merging
-    #         litG = helpAsympA(amp1, amp2, phi1, phi2, )
-    
-    nroots = roots.shape[1]
-    if nroots == 3: # just three real roots
-                cond1 = np.abs(roots[0][0][0] - roots[0][1][0]) < np.abs(roots[0][1][0] - roots[0][2][0])
-                cond2 = np.abs(roots[-1][0][0] - roots[-1][1][0]) < np.abs(roots[-1][1][0] - roots[-1][2][0])
-                if cond1 and cond2: # first root merges with second root at both ends
-                    litG = helpAsympA(np.abs(fields[0]), np.abs(fields[1]), phases[0], phases[1], fields[2], sigs[0])
-                elif not cond1 and not cond2: # second root merges with third root at both ends
-                    litG = helpAsympA(np.abs(fields[1]), np.abs(fields[2]), phases[1], phases[2], fields[0], sigs[0])
-                else: # need to split in two
-                    u1, u2, u3 = fields
-                    u11, u12 = np.split(u1, 2)
-                    U21, U22 = np.split(np.abs(u2), 2)
-                    u31, u32 = np.split(u3, 2)
-                    phi1, phi2, phi3 = phases
-                    phi11, phi12 = np.split(phi1, 2)
-                    phi21, phi22 = np.split(phi2, 2)
-                    phi31, phi32 = np.split(phi3, 2)
-                    if cond1 and not cond2: # first root merges with second root at first end and second root merges with third root at other end
-                        litG1 = helpAsympA(np.abs(u11), U21, phi11, phi21, u31, sigs[0])
-                        litG2 = helpAsympA(U22, np.abs(u32), phi22, phi32, u12, sigs[0])
-                        litG = np.concatenate((litG1, litG2))
-                    else: # second root merges with third root at first end and first root merges with second root at other end
-                        litG1 = helpAsympA(U21, np.abs(u31), phi21, phi31, u11, sigs[0])
-                        litG2 = helpAsympA(np.abs(u12), U22, phi12, phi22, u32, sigs[0])
-                        litG = np.concatenate((litG1, litG2))
-    elif nroots == 4:  # three real roots and one complex root
-        # second root merges with third root
-        if np.abs(roots[0][1][0] - roots[0][2][0]) < np.abs(roots[0][0][0] - roots[0][1][0]):
-            ucomp = helpAsympB(sigs[0], 3)
-            u2 = np.sum([fields[0], ucomp], axis=0)
-            litG = helpAsympA(np.abs(fields[1]), np.abs(fields[2]), phases[1], phases[2], u2, sigs[0])
-        else:  # first root merges with second root
-            ucomp = helpAsympB(sigs[3], 3)
-            u2 = np.sum([fields[2], ucomp], axis=0)
-            litG = helpAsympA(np.abs(fields[0]), np.abs(fields[1]), phases[0], phases[1], u2, sigs[3])
-    else:  # five real roots
-        u1, u2, u3, u4, u5 = fields  # super ugly, maybe there's a better way to do this
-        u11, u12 = np.split(u1, 2)
-        u21, u22 = np.split(u2, 2)
-        u31, u32 = np.split(u3, 2)
-        u41, u42 = np.split(u4, 2)
-        u51, u52 = np.split(u5, 2)
-        phi1, phi2, phi3, phi4, phi5 = phases
-        phi11, phi12 = np.split(phi1, 2)
-        phi21, phi22 = np.split(phi2, 2)
-        phi31, phi32 = np.split(phi3, 2)
-        phi41, phi42 = np.split(phi4, 2)
-        phi51, phi52 = np.split(phi5, 2)
-        litG1 = helpAsympA(np.abs(u31), np.abs(u51), phi31, phi51, np.sum([u11, u21, u41], axis=0), sigs[1])
-        litG2 = helpAsympA(np.abs(u12), np.abs(u22), phi12, phi22, np.sum([u32, u42, u52], axis=0), sigs[1])
-        litG = np.concatenate((litG1, litG2))
-    return litG
-
-def darkAsymp(roots, phases, fields, sigs, rF2, lc, ax, ay):
-
-    def helpAsymp(sig, pos):
-        cphases = phases[pos]
-        amp = np.zeros(npoints)
-        for i in range(npoints):
-            amp[i] = GOAmplitude(roots[i][pos], rF2, lc, ax, ay)
-        xi = (1.5*np.abs(cphases.imag))**(2./3.)
-        u1 = 2*pi**0.5*amp *(xi)**0.25 * airy(xi)[0] * exp(1j*(cphases.real + sig*0.25*pi))
-        return u1
-
-    nroots = roots.shape[1]
-    npoints = len(roots)
-
-    if nroots == 2:
-        u1 = helpAsymp(sigs[0], 1)
-        return np.abs(u1 + fields[0])**2
-    else:
-            u1 = helpAsymp(sigs[1], 1)
-            if ax == ay:
-                if np.around(roots[0][1][0].real, 3) != np.around(roots[0][2][0].real, 3):
-                    # print([roots[0][1][0].real, roots[0][2][0].real])
-                    u2 = helpAsymp(sigs[1], 2)
+    asymp = np.zeros([nzones, npoints])
+    for i in range(nzones):
+        p = i - 1 # caustic index
+        if i < nzones/2:
+            p = i
+        roots, fields = allroots[i], allfields[i]
+        nroots = (ncomplex + nreal)[i]
+        realn = int(nreal[i])
+        if nreal[i] == 1: # no real roots merge
+            areal = constructField(*fields[0])
+        else: # deal with merging real roots
+            merge = [findClosest(roots[0][:realn].real), findClosest(roots[-1][:realn].real)] # find closest real roots at each end
+            mroot1, mroot2 = merge[0][0], merge[1][0] # set indices of merging roots
+            print([mroot1, mroot2])
+            # print([merge[0][1], merge[1][1]])
+            nmroots1 = list(set(range(realn)) - set(mroot1)) # indices of non merging roots at one end
+            nmroots2 = list(set(range(realn)) - set(mroot2)) # indices of non merging roots at other end
+            if merge[0][1] < 0.4 and merge[1][1] < 0.4: # case 1: real root merging at both ends
+                if np.all(mroot1 == mroot2): # same root merges at both ends
+                    A1, phi1 = fields[mroot1[0]][:2]
+                    A2, phi2 = fields[mroot1[1]][:2]
+                    amerge = bright(A1, A2, phi1, phi2, sigs[p])
+                    anonm = np.zeros(npoints, dtype = complex)
+                    for index in nmroots1:
+                        anonm = anonm + constructField(*fields[index]) # sum of fields not involved in merging
+                    areal = amerge + anonm
+                else: # different roots merge at each end
+                    A11, A21 = np.split(fields[mroot1[0]][0], 2)[0], np.split(fields[mroot1[1]][0], 2)[0]
+                    A32, A42 = np.split(fields[mroot2[0]][0], 2)[1], np.split(fields[mroot2[1]][0], 2)[1]
+                    phi11, phi21 = np.split(fields[mroot1[0]][1], 2)[0], np.split(fields[mroot1[1]][1], 2)[0]
+                    phi32, phi42 = np.split(fields[mroot2[0]][1], 2)[1], np.split(fields[mroot2[1]][1], 2)[1]
+                    if i < nzones/2.:
+                        amerge1 = bright(A11, A21, phi11, phi21, sigs[p])
+                        amerge2 = bright(A32, A42, phi32, phi42, sigs[p])
+                    else:
+                        amerge1 = bright(A11, A21, phi11, phi21, sigs[p+1])
+                        amerge2 = bright(A32, A42, phi32, phi42, sigs[p+1])
+                    nmfields1 = [constructField(*np.split(fields[nmroot], 2, axis = 1)[0]) for nmroot in nmroots1]
+                    nmfields2 = [constructField(*np.split(fields[nmroot], 2, axis = 1)[1]) for nmroot in nmroots2]
+                    anonm1 = np.zeros(npoints/2, dtype = complex)
+                    for j in range(len(nmroots1)):
+                        anonm1 = anonm1 + nmfields1[j]
+                    anonm2 = np.zeros(npoints/2, dtype = complex)
+                    for j in range(len(nmroots2)):
+                        anonm2 = anonm2 + nmfields2[j]
+                    areal = np.concatenate((amerge1 + anonm1, amerge2 + anonm2))
+            elif merge[0][1] < 0.4 and merge[1][1] > 0.4: # case 2: real root merging at first end only
+                A1, phi1 = fields[mroot1[0]][:2]
+                A2, phi2 = fields[mroot1[1]][:2]
+                if i < nzones/2.:
+                    amerge = bright(A1, A2, phi1, phi2, sigs[p-1])
                 else:
-                    u2 = np.zeros(npoints)
-            else:
-                u2 = helpAsymp(sigs[2], 2)
-            return np.abs(u1 + u2 + fields[0])**2
+                    amerge = bright(A1, A2, phi1, phi2, sigs[p])
+                anonm = np.zeros(npoints, dtype = complex)
+                for index in nmroots1:
+                    anonm = anonm + constructField(*fields[index]) # sum of fields not involved in merging
+                areal = amerge + anonm
+            elif merge[0][1] > 0.4 and merge[1][1] < 0.4: # case 3: real root merging at second end only
+                A1, phi1 = fields[mroot2[0]][:2]
+                A2, phi2 = fields[mroot2[1]][:2]
+                if i < nzones/2:
+                    amerge = bright(A1, A2, phi1, phi2, sigs[p])
+                else:
+                    amerge = bright(A1, A2, phi1, phi2, sigs[p+1])
+                anonm = np.zeros(npoints, dtype = complex)
+                for index in nmroots2:
+                    anonm = anonm + constructField(*fields[index]) # sum of fields not involved in merging
+                areal = amerge + anonm
+        if ncomplex[i] != 0: # deal with merging complex roots. its a mess, there should a better way of doing it
+            A, phi = fields[realn][:2]
+            cond = np.abs(roots[0][realn][0].imag/roots[0][realn][0].real) < np.abs(roots[-1][realn][0].imag/np.abs(roots[-1][realn][0].real))
+            if cond: # complex root merges at first end
+                if i < nzones/2.:
+                    acomp = dark(A, phi, sigs[p - 1])
+                else:
+                    acomp = dark(A, phi, sigs[p])
+            else: # complex root merges at second end
+                if i < nzones/2.:
+                    acomp = dark(A, phi, sigs[p])
+                else:
+                    acomp = dark(A, phi, sigs[p + 1])
+            if ncomplex[i] == 2 and np.around(fields[realn][0][0], 3) != np.around(fields[realn + 1][0][0], 3):
+                A2, phi2 = fields[realn + 1][:2]
+                if cond:
+                    if i < nzones/2.:
+                        acomp = acomp + dark(A2, phi2, sigs[p])
+                    else:
+                        acomp = acomp + dark(A2, phi2, sigs[p + 1])
+                else:
+                    if i < nzones/2.:
+                        acomp = acomp + dark(A2, phi2, sigs[p - 1])
+                    else:
+                        acomp = acomp + dark(A2, phi2, sigs[p])
+        else:
+            acomp = np.zeros(npoints)
+        asymp[i] = np.abs(areal + acomp)**2
+    return asymp.flatten()
 
 def planeSliceTOA(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints):
     """ Plots TOA perturbation for slice across the u'-plane for given lens parameters, observation frequency, uxmax, slope m and offset n. Also shows path across the plane with respect with the caustic curves. """
-    
-    def findRealRoots(segs):
-        """ Finds all real roots of the lens equation as a function of u' coordinates given in segs[i]. Unlike rootFinder, finds the initial set of roots at the middle of segs[i] and iterates forward and backwards. rootFinder, on the other hand, starts from the beginning and moves forward. This function is able to find roots that are much closer to the caustic than rootFinder."""
-        allroots = []
-        for i in range(len(segs)):
-            temp0 = polishedRoots(lensEq, 2*uxmax, 2*uymax, args = (segs[i][npoints/2], coeff))
-            nsolns = len(temp0)
-            roots = np.zeros([npoints, nsolns, 2])
-            roots[npoints/2] = temp0
-            for j in np.flipud(range(npoints/2 + 1)):
-                for k in range(nsolns):
-                    temp = op.root(lensEq, roots[j][k], args = (segs[i][j-1], coeff))
-                    if temp.success:
-                        roots[j-1][k] = temp.x
-                    else:
-                        print('Error')
-                        print(segs[i][j])
-                        print(temp)
-            for j in range(npoints/2 + 1, npoints):
-                for k in range(nsolns):
-                    temp = op.root(lensEq, roots[j-1][k], args = (segs[i][j], coeff))
-                    if temp.success:
-                        roots[j][k] = temp.x
-                    else:
-                        print('Error')
-                        print(segs[i][j])
-                        print(temp)
-            allroots.append(roots)
-        return allroots
     
     # Calculate coefficients
     rF2 = rFsqr(dso, dsl, f)
@@ -220,27 +198,30 @@ def planeSliceTOA(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints):
     else:
         xmax = uxmax
         
-    cdist = xmax*1e-6
+    cdist = uxmax/(np.abs(5*lc))
     
-    bound = np.insert(upcross, 0, np.array([[xmin, ymin]]), axis = 0)
+    bound = np.insert(upcross, 0, np.array([[xmin, ymin]]), axis = 0) # set up boundaries
     bound = np.append(bound, np.array([[xmax, ymax]]), axis = 0)
-    upxvecs = np.asarray([np.linspace(bound[i-1][0] + cdist, bound[i][0] - cdist, npoints) for i in range(1, ncross + 2)])
-    segs = np.asarray([lineVert(upx, m, n) for upx in upxvecs])
-    allroots = findRealRoots(segs)
-    nsolns = [len(roots[0]) for roots in allroots]
-    print(nsolns)
-    # print(allroots)
+    midpoints = [(bound[i] + bound[i+1])/2. for i in range(len(bound) - 1)] # find middle point between boundaries
+    nzones = len(midpoints)
+    nreal = np.zeros(nzones)
+    for i in range(nzones): # find number of roots at each midpoint
+        mpoint = midpoints[i]
+        nreal[i] = len(findRoots(lensEq, 2*uxmax, 2*uymax, args = (mpoint, coeff)))
+    upxvecs = np.array([np.linspace(bound[i-1][0] + cdist, bound[i][0] - cdist, npoints) for i in range(1, ncross + 2)]) # generate upx vector
+    segs = np.asarray([lineVert(upx, m, n) for upx in upxvecs]) # generate slice across plane
+    ncomplex = np.zeros(nzones) # don't care about complex solutions in this case
+    print(nreal)
     
     # Calculate TOAs
     alltoas = []
-    for i in range(len(allroots)):
-        toas = obsCalc(deltatA, allroots[i], nsolns[i], npoints, args = (tg0, tdm0, alp, ax, ay)).real
+    for i in range(nzones):
+        toas = obsCalc(deltatA, allroots[i], nsolns[i], npoints, 1, args = (tg0, tdm0, alp, ax, ay)).real
         alltoas.append(toas)
     
     # Plots
     fig = plt.figure(figsize=(15, 10))
     grid = gs.GridSpec(2, 2, width_ratios=[4, 1])
-    # grid.update(hspace=mincdist)
     ax0 = plt.subplot(grid[1:, 1])
     ax1 = plt.subplot(grid[0, 1])
     
@@ -260,7 +241,6 @@ def planeSliceTOA(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints):
     ax1.set_xlabel(r"$u'_x$")
     ax1.set_ylabel(r"$u'_y$")
     ax1.set_xlim(-uxmax, uxmax)
-    # ax1.set_ylim(np.min(upy)*1.5, np.max(upy)*1.5)
     ax1.set_title("Caustic curves")
     ax1.set_aspect('equal', anchor = 'C')
     ax1.grid()
@@ -305,7 +285,6 @@ def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 4000, gsi
 
     # Calculate caustic intersections
     ucross = polishedRoots(causticEqSlice, uxmax, uymax, args = (alp, m, n, ax, ay))
-    plt.close()
     ncross = len(ucross)
     upcross = mapToUp(ucross.T, alp, ax, ay)
     p = np.argsort(upcross[0])
@@ -347,7 +326,6 @@ def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 4000, gsi
         mpoint = midpoints[i]
         nreal[i] = len(findRoots(lensEq, 2*uxmax, 2*uymax, args = (mpoint, coeff)))
     upxvecs = np.array([np.linspace(bound[i-1][0] + cdist, bound[i][0] - cdist, npoints) for i in range(1, ncross + 2)]) # generate upx vector
-    # print(upxvecs)
     segs = np.asarray([lineVert(upx, m, n) for upx in upxvecs]) # generate slice across plane
     diff = difference(nreal) # determine number of complex solutions
     ncomplex = np.ones(nzones)*100
@@ -363,42 +341,16 @@ def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 4000, gsi
 
     # Solve lens equation at each coordinate
     allroots = rootFinder(segs, nreal, ncomplex, npoints, ucross, uxmax, uymax, coeff)
-    # print(allroots[2])
     
     # Calculate fields
     allfields = []
     for i in range(nzones):
-        fields = obsCalc(GOfieldA, allroots[i], len(allroots[i][0]), npoints, args=(rF2, lc, ax, ay))
+        fields = obsCalc(GOfieldA, allroots[i], len(allroots[i][0]), npoints, 3, args=(rF2, lc, ax, ay))
         allfields.append(fields)
 
-    # Calculate phases
-    allphases = []
-    for i in range(nzones):
-        phis = obsCalc(phi, allroots[i], len(allroots[i][0]), npoints, args=(rF2, lc, ax, ay))
-        allphases.append(phis)
-
     # Construct uniform asymptotics
-    if ncross == 2:
-        litG = litAsymp(allroots[1], allphases[1], allfields[1], sigs, rF2, lc, ax, ay)
-        darkG1 = darkAsymp(allroots[0], allphases[0], allfields[0], sigs, rF2, lc, ax, ay)
-        darkG2 = darkAsymp(allroots[2], allphases[2], allfields[2], sigs, rF2, lc, ax, ay)
-        interp = UnivariateSpline(upxvecs.flatten(), np.concatenate((darkG1, litG, darkG2)), s = 0)
-    else:
-        if dm > 0:
-            litG1 = litAsymp(allroots[1], allphases[1], allfields[1], sigs, rF2, lc, ax, ay)
-            litG2 = litAsymp(allroots[3], allphases[3], allfields[3], sigs, rF2, lc, ax, ay)
-            darkG1 = darkAsymp(allroots[0], allphases[0], allfields[0], sigs, rF2, lc, ax, ay)
-            darkG2 = darkAsymp(allroots[2], allphases[2], allfields[2], sigs, rF2, lc, ax, ay)
-            darkG3 = darkAsymp(allroots[4], allphases[4], allfields[4], sigs, rF2, lc, ax, ay)
-            interp = UnivariateSpline(upxvecs.flatten(), np.concatenate((darkG1, litG1, darkG2, litG2, darkG3)), s = 0)
-        else:
-            litG1 = litAsymp(allroots[1], allphases[1], allfields[1], sigs, rF2, lc, ax, ay)
-            litG2 = litAsymp(allroots[2], allphases[2], allfields[2], sigs, rF2, lc, ax, ay)
-            litG3 = litAsymp(allroots[3], allphases[3], allfields[3], sigs, rF2, lc, ax, ay)
-            darkG1 = darkAsymp(allroots[0], allphases[0], allfields[0], sigs, rF2, lc, ax, ay)
-            darkG2 = darkAsymp(allroots[4], allphases[4], allfields[4], sigs, rF2, lc, ax, ay)
-            interp = UnivariateSpline(upxvecs.flatten(), np.concatenate((darkG1, litG1, litG2, litG3, darkG2)), s = 0)
-
+    asymp = uniAsymp(allroots, allfields, nreal, ncomplex, npoints, nzones, sigs)
+    interp = UnivariateSpline(upxvecs.flatten(), asymp, s = 0)
     finx = np.linspace(xmin, xmax, 4*npoints)
     asymG = interp(finx)
 
