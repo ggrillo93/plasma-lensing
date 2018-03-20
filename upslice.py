@@ -135,14 +135,16 @@ def uniAsymp(allroots, allfields, nreal, ncomplex, npoints, nzones, sigs):
                 areal = amerge + anonm
         if ncomplex[i] != 0: # deal with merging complex roots. its a mess, there should a better way of doing it
             A, phi = fields[realn][:2]
-            cond = np.abs(roots[0][realn][0].imag/roots[0][realn][0].real) < np.abs(roots[-1][realn][0].imag/np.abs(roots[-1][realn][0].real))
+            cond = np.abs(roots[0][realn][0].imag/roots[0][realn][0].real) < np.abs(roots[-1][realn][0].imag/roots[-1][realn][0].real)
+            print(roots[0][realn])
+            print(roots[-1][realn])
             if cond: # complex root merges at first end
                 if i < nzones/2.:
                     acomp = dark(A, phi, sigs[p - 1])
                 else:
                     acomp = dark(A, phi, sigs[p])
             else: # complex root merges at second end
-                if i < nzones/2.:
+                if i < nzones/2. or i == nzones - 1:
                     acomp = dark(A, phi, sigs[p])
                 else:
                     acomp = dark(A, phi, sigs[p + 1])
@@ -216,7 +218,7 @@ def planeSliceTOA(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints):
     # Calculate TOAs
     alltoas = []
     for i in range(nzones):
-        toas = obsCalc(deltatA, allroots[i], nsolns[i], npoints, 1, args = (tg0, tdm0, alp, ax, ay)).real
+        toas = obsCalc(deltat, allroots[i], nsolns[i], npoints, 1, args = (tg0, tdm0, alp, ax, ay)).real
         alltoas.append(toas)
     
     # Plots
@@ -295,7 +297,7 @@ def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 4000, gsi
     # Calculate sign of second derivative at caustics
     sigs = np.zeros(ncross)
     for i in range(ncross):
-        sigs[i] = np.sign(ax**2/rF2 + lc*gauss20(ucross[i][0], ucross[i][1]))
+        sigs[i] = np.sign(ax**2/rF2 + lc*(lensh(*[ucross[i][0], ucross[i][1]])[0]))
     print(sigs)
 
     # Set up quantities for proper u' plane slicing
@@ -322,9 +324,10 @@ def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 4000, gsi
     midpoints = [(bound[i] + bound[i+1])/2. for i in range(len(bound) - 1)] # find middle point between boundaries
     nzones = len(midpoints)
     nreal = np.zeros(nzones)
+    print(nzones)
     for i in range(nzones): # find number of roots at each midpoint
         mpoint = midpoints[i]
-        nreal[i] = len(findRoots(lensEq, 2*uxmax, 2*uymax, args = (mpoint, coeff)))
+        nreal[i] = len(findRoots(lensEq, 2*uxmax, 2*uymax, args = (mpoint, coeff), plot = True, N = 1000))
     upxvecs = np.array([np.linspace(bound[i-1][0] + cdist, bound[i][0] - cdist, npoints) for i in range(1, ncross + 2)]) # generate upx vector
     segs = np.asarray([lineVert(upx, m, n) for upx in upxvecs]) # generate slice across plane
     diff = difference(nreal) # determine number of complex solutions
@@ -345,7 +348,7 @@ def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 4000, gsi
     # Calculate fields
     allfields = []
     for i in range(nzones):
-        fields = obsCalc(GOfieldA, allroots[i], len(allroots[i][0]), npoints, 3, args=(rF2, lc, ax, ay))
+        fields = obsCalc(GOfield, allroots[i], len(allroots[i][0]), npoints, 3, args=(rF2, lc, ax, ay))
         allfields.append(fields)
 
     # Construct uniform asymptotics
@@ -381,7 +384,7 @@ def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 4000, gsi
     ux, uy = np.meshgrid(rx, ry)
 
     rx2 = np.linspace(xmin, xmax, gsizex)
-    im0 = ax0.imshow(soln, origin = 'lower', extent = extent, aspect = 'auto') # Plot entire screen
+    im0 = ax0.imshow(soln, origin = 'lower', extent = extent, aspect = 'auto', cmap = 'jet') # Plot entire screen
     fig.colorbar(im0, ax = ax0)
     ucaus = causCurve([ux, uy], lc*np.array([uF2x, uF2y]))
     cs = plt.contour(np.linspace(-uxmax, uxmax, gsizex), ry, ucaus, levels = [0, np.inf], linewidths = 0)

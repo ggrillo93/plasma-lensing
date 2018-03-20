@@ -1,6 +1,7 @@
 from __future__ import division
 from numba import jit
 import numpy as np
+import sympy as sym
 
 c = 2.998e10
 pctocm = 3.0856e18
@@ -9,69 +10,14 @@ re = 2.8179e-13
 kpc = 1e3
 autocm = 1.4960e13
 pi = np.pi
-exp = np.exp
 
-# Gaussian Lenses
-
-@jit(nopython=True)
-def gauss(ux, uy):
-    return exp(-ux**2 - uy**2)
-
-@jit(nopython=True)
-def gauss10(ux, uy):
-    return -2*ux*gauss(ux, uy)
-
-@jit(nopython=True)
-def gauss01(ux, uy):
-    return -2*uy*gauss(ux, uy)
-
-@jit(nopython=True)
-def gauss20(ux, uy):
-    return 2*gauss(ux, uy)*(2*ux**2 - 1)
-
-@jit(nopython=True)
-def gauss02(ux, uy):
-    return 2*gauss(ux, uy)*(2*uy**2 - 1)
-
-@jit(nopython=True)
-def gauss11(ux, uy):
-    return 4*ux*uy*gauss(ux, uy)
-
-@jit(nopython=True)
-def gauss30(ux, uy):
-    return -4*ux*(2*ux**2 - 3)*gauss(ux, uy)
-
-@jit(nopython=True)
-def gauss03(ux, uy):
-    return -4*uy*(2*uy**2 - 3)*gauss(ux, uy)
-
-@jit(nopython=True)
-def gauss21(ux, uy):
-    return -4*uy*(2*ux**2 - 1)*gauss(ux, uy)
-
-@jit(nopython=True)
-def gauss12(ux, uy):
-    return -4*ux*(2*uy**2 - 1)*gauss(ux, uy)
-
-@jit(nopython=True)
-def gauss22(ux, uy):
-    return 4*gauss(ux, uy)*(2*ux**2 - 1)*(2*uy**2 - 1)
-
-@jit(nopython=True)
-def gauss13(ux, uy):
-    return 8*gauss(ux, uy)*ux*uy*(2*uy**2 - 3)
-
-@jit(nopython=True)
-def gauss31(ux, uy):
-    return 8*gauss(ux, uy)*ux*uy*(2*ux**2 - 3)
-
-@jit(nopython=True)
-def gauss40(ux, uy):
-    return 4*gauss(ux, uy)*(3 - 12*ux**2 + 4*ux**4)
-
-@jit(nopython=True)
-def gauss04(ux, uy):
-    return 4*gauss(ux, uy)*(3 - 12*uy**2 + 4*uy**4)
+ux, uy = sym.symbols('ux uy')
+lensfun = sym.exp(-ux**2 - uy**2)
+lensg = np.array([sym.diff(lensfun, ux), sym.diff(lensfun, uy)])
+lensh = np.array([sym.diff(lensfun, ux, ux), sym.diff(lensfun, uy, uy), sym.diff(lensfun, ux, uy)])
+lensfun = sym.lambdify([ux, uy], lensfun, "numpy")
+lensg = sym.lambdify([ux, uy], lensg, "numpy")
+lensh = sym.lambdify([ux, uy], lensh, "numpy")
 
 @jit(nopython=True)
 def alpha(dso, dsl, f, dm):
@@ -101,8 +47,8 @@ def tdm0coeff(dm, f):
 
 def mapToUp(uvec, alp, ax, ay):
     """ Maps points in the u-plane to points in the u'-plane. """
-    ux, uy = uvec
-    g = gauss(ux, uy)
-    upx = ux*(1 - 2*alp*g/ax**2)
-    upy = uy*(1 - 2*alp*g/ay**2)
+    ux, uy  = uvec
+    fun = lensfun(*uvec)
+    upx = ux*(1 - 2*alp*fun/ax**2)
+    upy = uy*(1 - 2*alp*fun/ay**2)
     return np.array([upx, upy])

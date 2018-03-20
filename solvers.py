@@ -7,16 +7,16 @@ def compLensEq(uvec, upvec, coeff):
     """ Evaluates the 2D lens equation with u a complex vector. """
     uxr, uxi, uyr, uyi = uvec
     upx, upy = upvec
-    funcg = np.array([gauss10(uxr + 1j*uxi, uyr + 1j*uyi), gauss01(uxr + 1j*uxi, uyr + 1j*uyi)])
-    eq = np.array([uxr + 1j*uxi + coeff[0]*funcg[0] - upx, uyr + 1j*uyi + coeff[1]*funcg[1] - upy])
+    grad = lensg(*[uxr + 1j*uxi, uyr + 1j*uyi])
+    eq = np.array([uxr + 1j*uxi + coeff[0]*grad[0] - upx, uyr + 1j*uyi + coeff[1]*grad[1] - upy])
     return [eq[0].real, eq[0].imag, eq[1].real, eq[1].imag]
 
 def lensEq(uvec, upvec, coeff):
     """ Evaluates the 2D lens equation. coeff = alp*[1/ax**2, 1/ay**2]. """
     ux, uy = uvec
     upx, upy = upvec
-    funcg = np.array([gauss10(ux, uy), gauss01(ux, uy)])
-    return np.array([ux + coeff[0]*funcg[0] - upx, uy + coeff[1]*funcg[1] - upy])
+    grad = lensg(*uvec)
+    return np.array([ux + coeff[0]*grad[0] - upx, uy + coeff[1]*grad[1] - upy])
 
 def close(myarr, list_arrays):
     """ Determines whether array is inside another list of arrays. """
@@ -25,17 +25,16 @@ def close(myarr, list_arrays):
 # Caustic finders
 
 def causCurve(uvec, coeff):
-    g20, g02, g11 = gauss20(*uvec), gauss02(*uvec), gauss11(*uvec)
-    return 1 + coeff[0]*g20 + coeff[1]*g02 - coeff[0]*coeff[1]*(g11**2 - g20*g02)
+    psi20, psi02, psi11 = lensh(*uvec)
+    return 1 + coeff[0]*psi20 + coeff[1]*psi02 - coeff[0]*coeff[1]*(psi11**2 - psi20*psi02)
 
 def causticEqSlice(uvec, alp, m, n, ax, ay):
     """ Evaluates the caustic equations for a slice across the u'-plane for given ux, uy, slope m and offset n, and lens parameters. Input in cgs units. """
     ux, uy = uvec
-    eq1 = uy - m*ux - n + 2*alp*gauss(ux, uy)*(m*ux/ax**2 - uy/ay**2)
-    g20 = gauss20(ux, uy)
-    g02 = gauss02(ux, uy)
-    g11 = gauss11(ux, uy)
-    eq2 = 1 + alp*(ay**2*g20 + ax**2*g02)/(ay*ax)**2 - alp**2*(g11**2 - g20*g02)/(ay*ax)**2
+    # print(lensfun(uvec))
+    eq1 = uy - m*ux - n + 2*alp*lensfun(*uvec)*(m*ux/ax**2 - uy/ay**2)
+    psi20, psi02, psi11 = lensh(*uvec)
+    eq2 = 1 + alp*(ay**2*psi20 + ax**2*psi02)/(ay*ax)**2 - alp**2*(psi11**2 - psi20*psi02)/(ay*ax)**2
     return np.array([eq1, eq2])
 
 def causticEqFreq(uvec, upvec, ax, ay):
@@ -53,7 +52,7 @@ def causticFreq(roots, upx, ax, dsl, dso, dm):
     coeff = dsl*dlo*re*dm/(2*pi*dso)
     for root in roots:
         ux, uy = root
-        arg = coeff*gauss10(ux, uy)/(ux - upx)
+        arg = coeff*lensg(*root)[0]/(ux - upx)
         if arg > 0:
             freqcaustics.append(c*np.sqrt(arg)/(ax*GHz))
     return np.sort(freqcaustics)
@@ -64,9 +63,9 @@ def causPlotter(uxmax, uymax, alp, ax, ay, m = 1000, n = 1000):
     ry = np.linspace(-uymax, uymax, 500)
     uvec = np.meshgrid(rx, ry)
     coeff = np.array([alp/ax**2, alp/ay**2])
-    # if -1.1215 < alp < 0.5 and -1.1215 < beta < 0.5:
-    #     print("No caustics")
-    #     return
+    if -1.1215 < alp < 0.5 and -1.1215 < beta < 0.5:
+        print("No caustics")
+        return
     ucaus = causCurve(uvec, coeff)
     upmax = mapToUp(np.array([uxmax, uymax]), alp, ax, ay)
     f, axarr = plt.subplots(1, 2, figsize = (16, 8))
@@ -106,12 +105,16 @@ def findRoots(func, uxmax, uymax, args = (), N = 500, plot = False):
         poly1 = geometry.LineString(v1)
         poly2 = geometry.LineString(v2)
         intersection = poly1.intersection(poly2)
+        # print(intersection)
         try:
             coo = np.ones([5, 2])*1000
             for a in range(len(intersection)):
                 coo[a] = np.asarray(list(intersection[a].coords))
         except:
-            coo = np.asarray(list(intersection.coords))
+            try:
+                coo = np.asarray(list(intersection.coords))
+            except:
+                pass
         coo = coo[np.nonzero(coo - 1000)]
         return coo
 
@@ -139,13 +142,11 @@ def findRoots(func, uxmax, uymax, args = (), N = 500, plot = False):
             if len(root) != 0:
                 roots = np.append(roots, root)
     roots = np.asarray(roots).flatten().reshape(-1, 2)
-    if plot and roots.size != 0:
+    if plot:
         if roots.size != 0:
             plt.scatter(roots.T[0], roots.T[1], color = 'black')
         plt.xlabel(r"$u_x$")
         plt.ylabel(r"$u_y$")
-        # plt.xlim(-uxmax, uxmax)
-        # plt.ylim(-uymax, uymax)
         plt.grid(True)
         plt.show()
     if len(roots) > 1:
@@ -259,23 +260,3 @@ def rootFinder(segs, nreal, ncomplex, npoints, ucross, uxmax, uymax, coeff):
                 roots = np.flipud(roots)
         allroots.append(roots)
     return allroots
-
-# Numerical derivatives
-
-@jit(nopython=True)
-def der(func, uvec, order, args = ()):
-    """ Returns numerical derivative of order = [o1, o2] of function func at point uvec. Max o1 + o2 = 3. """
-    o1, o2 = order
-    ux, uy = uvec
-    hx, hy = 1e-6, 1e-6
-    if o1 == 1 and o2 == 0:
-        ans = (func(ux + hx, uy, *args) - func(ux, uy, *args))/hx
-    elif o1 == 0 and o2 == 1:
-        ans = (func(ux, uy + hy, *args) - func(ux, uy, *args))/hy
-    elif o1 == 1 and o2 == 1:
-        ans = (func(ux + hx, uy + hy, *args) - func(ux + hx, uy - hy, *args) - func(ux - hx, uy + hy, *args) + func(ux - hx, uy - hy, *args))/(4.*hx*hy)
-    elif o1 == 2 and o2 == 0:
-        ans = (func(ux + 2*hx, uy, *args) - 2*func(ux, uy, *args) + func(ux - 2*hx, uy, *args))/(4*hx**2)
-    elif o1 == 0 and o2 == 2:
-        ans = (func(ux, uy + 2*hy, *args) - 2*func(ux, uy, *args) + func(ux, uy - 2*hy, *args))/(4*hy**2)
-    return ans
