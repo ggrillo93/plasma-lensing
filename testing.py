@@ -3,10 +3,12 @@ from observables import *
 from upslice import *
 from kdi import *
 
-dso, dsl, f, dm, ax, ay = 1.1*kpc*pctocm, 0.55*kpc*pctocm, 0.8*GHz, -1e-6*pctocm, 0.02*autocm, 0.02*autocm
+dso, dsl, f, dm, ax, ay = 1.1*kpc*pctocm, 0.55*kpc*pctocm, 0.8*GHz, -1e-6*pctocm, 0.02*autocm, 0.025*autocm
 alp = alpha(dso, dsl, f, dm)
 
-# planeSliceG(8., 8., dso, dsl, f, dm, 1., 3., ax, ay, gsizex = 1.5*2048, gsizey = 1.5*2048)
+# causPlotter(2., 2., alp, ax, ay, m=0., n=1.)
+solveKDI(2., 2., dso, dsl, f, dm, ax, ay, 2048, 2048, m=1, n=0.5)
+# planeSliceG(2., 2., dso, dsl, f, dm, 0., 1., ax, ay, gsizex = 1.5*2048, gsizey = 1.5*2048)
 
 # Test cases
 def runTests():
@@ -38,7 +40,9 @@ def runTests():
     planeSliceG(lims[2], lims[2], dso, dsl, f, -dm[-1], m[2], n[-2], scales[-2], scales[-2], gsizex = gsize[-1], gsizey = gsize[-1])
     return
 
-runTests()
+
+# findRoots(causticEqSlice, 4., 4., args=(alp, 1., 0.5, ax, ay), plot = True)
+# runTests()
 # solveKDI(2., 2., dso, dsl, f, dm, ax, ay, 2048, 2048, m = 1, n = 0.5)
 # tdm0 = c*re*dm/(2*pi*f**2)
 # # print(tdm0)

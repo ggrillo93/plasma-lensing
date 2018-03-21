@@ -12,7 +12,7 @@ autocm = 1.4960e13
 pi = np.pi
 
 ux, uy = sym.symbols('ux uy')
-lensfun = sym.exp(-ux**2 - uy**2)
+lensfun = sym.exp(-ux**2 - uy**2)# *(1. - 5e-1*sym.sin(50*(ux + uy)))
 lensg = np.array([sym.diff(lensfun, ux), sym.diff(lensfun, uy)])
 lensh = np.array([sym.diff(lensfun, ux, ux), sym.diff(lensfun, uy, uy), sym.diff(lensfun, ux, uy)])
 lensfun = sym.lambdify([ux, uy], lensfun, "numpy")
@@ -47,8 +47,8 @@ def tdm0coeff(dm, f):
 
 def mapToUp(uvec, alp, ax, ay):
     """ Maps points in the u-plane to points in the u'-plane. """
-    ux, uy  = uvec
-    fun = lensfun(*uvec)
-    upx = ux*(1 - 2*alp*fun/ax**2)
-    upy = uy*(1 - 2*alp*fun/ay**2)
+    ux, uy = uvec
+    grad = lensg(ux, uy)
+    upx = ux + alp*grad[0]/ax**2
+    upy = uy + alp*grad[1]/ay**2
     return np.array([upx, upy])

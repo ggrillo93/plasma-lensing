@@ -7,7 +7,7 @@ from scipy.interpolate import *
 from kdi import *
 
 def constructField(amp, phases, pshift):
-    return amp*exp(1j*(phases + pshift))
+    return amp*np.exp(1j*(phases + pshift))
     
 def difference(arr):
     diff = np.ones(len(arr))
@@ -57,12 +57,12 @@ def uniAsymp(allroots, allfields, nreal, ncomplex, npoints, nzones, sigs):
         chi = 0.5*(phi1 + phi2)
         xi = -(0.75*pdiff)**(2./3.)
         air = airy(xi)
-        a1 = pi**0.5 *((A1 + A2)*(-xi)**0.25*air[0] - 1j*g1*(-xi)**-0.25*air[1]) * exp(1j*(chi + sig*0.25*pi))
+        a1 = pi**0.5 *((A1 + A2)*(-xi)**0.25*air[0] - 1j*g1*(-xi)**-0.25*air[1]) * np.exp(1j*(chi + sig*0.25*pi))
         return a1
         
     def dark(A, phi, sig):
         xi = (1.5*np.abs(phi.imag))**(2./3.)
-        a1 = 2*pi**0.5*A*(xi)**0.25 * airy(xi)[0] * exp(1j*(phi.real + sig*0.25*pi))
+        a1 = 2*pi**0.5*A*(xi)**0.25 * airy(xi)[0] * np.exp(1j*(phi.real + sig*0.25*pi))
         return a1
     
     asymp = np.zeros([nzones, npoints])
@@ -83,10 +83,11 @@ def uniAsymp(allroots, allfields, nreal, ncomplex, npoints, nzones, sigs):
             nmroots1 = list(set(range(realn)) - set(mroot1)) # indices of non merging roots at one end
             nmroots2 = list(set(range(realn)) - set(mroot2)) # indices of non merging roots at other end
             if merge[0][1] < 0.4 and merge[1][1] < 0.4: # case 1: real root merging at both ends
+                print('Double root merging')
                 if np.all(mroot1 == mroot2): # same root merges at both ends
                     A1, phi1 = fields[mroot1[0]][:2]
                     A2, phi2 = fields[mroot1[1]][:2]
-                    amerge = bright(A1, A2, phi1, phi2, sigs[p])
+                    amerge = bright(A1, A2, phi1, phi2, sigs[p-1])
                     anonm = np.zeros(npoints, dtype = complex)
                     for index in nmroots1:
                         anonm = anonm + constructField(*fields[index]) # sum of fields not involved in merging
@@ -112,6 +113,7 @@ def uniAsymp(allroots, allfields, nreal, ncomplex, npoints, nzones, sigs):
                         anonm2 = anonm2 + nmfields2[j]
                     areal = np.concatenate((amerge1 + anonm1, amerge2 + anonm2))
             elif merge[0][1] < 0.4 and merge[1][1] > 0.4: # case 2: real root merging at first end only
+                print('Root merging at first end')
                 A1, phi1 = fields[mroot1[0]][:2]
                 A2, phi2 = fields[mroot1[1]][:2]
                 if i < nzones/2.:
@@ -123,6 +125,7 @@ def uniAsymp(allroots, allfields, nreal, ncomplex, npoints, nzones, sigs):
                     anonm = anonm + constructField(*fields[index]) # sum of fields not involved in merging
                 areal = amerge + anonm
             elif merge[0][1] > 0.4 and merge[1][1] < 0.4: # case 3: real root merging at second end only
+                print('Root merging at second end')
                 A1, phi1 = fields[mroot2[0]][:2]
                 A2, phi2 = fields[mroot2[1]][:2]
                 if i < nzones/2:
@@ -136,8 +139,6 @@ def uniAsymp(allroots, allfields, nreal, ncomplex, npoints, nzones, sigs):
         if ncomplex[i] != 0: # deal with merging complex roots. its a mess, there should a better way of doing it
             A, phi = fields[realn][:2]
             cond = np.abs(roots[0][realn][0].imag/roots[0][realn][0].real) < np.abs(roots[-1][realn][0].imag/roots[-1][realn][0].real)
-            print(roots[0][realn])
-            print(roots[-1][realn])
             if cond: # complex root merges at first end
                 if i < nzones/2.:
                     acomp = dark(A, phi, sigs[p - 1])
@@ -327,7 +328,7 @@ def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 4000, gsi
     print(nzones)
     for i in range(nzones): # find number of roots at each midpoint
         mpoint = midpoints[i]
-        nreal[i] = len(findRoots(lensEq, 2*uxmax, 2*uymax, args = (mpoint, coeff), plot = True, N = 1000))
+        nreal[i] = len(findRoots(lensEq, 2*uxmax, 2*uymax, args = (mpoint, coeff), N = 1000))
     upxvecs = np.array([np.linspace(bound[i-1][0] + cdist, bound[i][0] - cdist, npoints) for i in range(1, ncross + 2)]) # generate upx vector
     segs = np.asarray([lineVert(upx, m, n) for upx in upxvecs]) # generate slice across plane
     diff = difference(nreal) # determine number of complex solutions

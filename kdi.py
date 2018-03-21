@@ -12,12 +12,12 @@ def gridToPixel(u, umax, gsize):
 def lensPhase(ux, uy, lc):
     """ Return the lens phase perturbation. """
     arg = lc*lensfun(ux, uy)
-    return exp(1j*arg)
+    return np.exp(1j*arg)
 
 def geoPhase(ux, uy, uF2x, uF2y):
     """ Returns the quadratic phase factor. """
     arg = ux**2/(2*uF2x) + uy**2/(2*uF2y)
-    return exp(1j*arg)
+    return np.exp(1j*arg)
 
 def solveKDI(uxmax, uymax, dso, dsl, f, dm, ax, ay, gsizex, gsizey, m = 0 , n = 0):
     
@@ -85,8 +85,8 @@ def solveKDI(uxmax, uymax, dso, dsl, f, dm, ax, ay, gsizex, gsizey, m = 0 , n = 
     for p in paths:
         cuvert = np.array(p.vertices).T
         upx, upy = mapToUp(cuvert, alp, ax, ay)
-        # ax0.plot(upx, upy, color = 'white') # Plot caustic curves
-    # ax0.scatter(upcross.T[0], upcross.T[1], color = 'white')
+        ax0.plot(upx, upy, color = 'white') # Plot caustic curves
+    ax0.scatter(upcross.T[0], upcross.T[1], color = 'white')
     ax0.plot(rx2, rx2*m + n, color = 'white') # Plot observer motion
     ax0.set_xlabel(r"$u'_x$")
     ax0.set_ylabel(r"$u'_y$")
@@ -94,8 +94,8 @@ def solveKDI(uxmax, uymax, dso, dsl, f, dm, ax, ay, gsizex, gsizey, m = 0 , n = 
 
     G = map_coordinates(soln.T, np.vstack((xx, yy))) # Plot gain along observer motion
     ax1.plot(rx2, G, color = 'blue')
-    for caus in upcross.T[0]:
-        ax1.plot([caus, caus], [-10, 1000], ls = 'dashed', color = 'black')
+    # for caus in upcross.T[0]:
+    #     ax1.plot([caus, caus], [-10, 1000], ls = 'dashed', color = 'black')
     ax1.set_ylim(-0.5, np.max(G) + 1.)
     ax1.set_xlim(np.min(rx2), np.max(rx2))
     ax1.set_xlabel(r"$u'_x$")

@@ -15,7 +15,7 @@ def lensEq(uvec, upvec, coeff):
     """ Evaluates the 2D lens equation. coeff = alp*[1/ax**2, 1/ay**2]. """
     ux, uy = uvec
     upx, upy = upvec
-    grad = lensg(*uvec)
+    grad = lensg(ux, uy)
     return np.array([ux + coeff[0]*grad[0] - upx, uy + coeff[1]*grad[1] - upy])
 
 def close(myarr, list_arrays):
@@ -25,15 +25,16 @@ def close(myarr, list_arrays):
 # Caustic finders
 
 def causCurve(uvec, coeff):
-    psi20, psi02, psi11 = lensh(*uvec)
+    ux, uy = uvec
+    psi20, psi02, psi11 = lensh(ux, uy)
     return 1 + coeff[0]*psi20 + coeff[1]*psi02 - coeff[0]*coeff[1]*(psi11**2 - psi20*psi02)
 
 def causticEqSlice(uvec, alp, m, n, ax, ay):
     """ Evaluates the caustic equations for a slice across the u'-plane for given ux, uy, slope m and offset n, and lens parameters. Input in cgs units. """
     ux, uy = uvec
-    # print(lensfun(uvec))
-    eq1 = uy - m*ux - n + 2*alp*lensfun(*uvec)*(m*ux/ax**2 - uy/ay**2)
-    psi20, psi02, psi11 = lensh(*uvec)
+    grad = lensg(ux, uy)
+    eq1 = uy - m*ux - n + alp/ay**2*grad[1] - m*alp/ax**2*grad[0] 
+    psi20, psi02, psi11 = lensh(ux, uy)
     eq2 = 1 + alp*(ay**2*psi20 + ax**2*psi02)/(ay*ax)**2 - alp**2*(psi11**2 - psi20*psi02)/(ay*ax)**2
     return np.array([eq1, eq2])
 
@@ -63,9 +64,9 @@ def causPlotter(uxmax, uymax, alp, ax, ay, m = 1000, n = 1000):
     ry = np.linspace(-uymax, uymax, 500)
     uvec = np.meshgrid(rx, ry)
     coeff = np.array([alp/ax**2, alp/ay**2])
-    if -1.1215 < alp < 0.5 and -1.1215 < beta < 0.5:
-        print("No caustics")
-        return
+    # if -1.1215 < alp < 0.5 and -1.1215 < beta < 0.5:
+    #     print("No caustics")
+    #     return
     ucaus = causCurve(uvec, coeff)
     upmax = mapToUp(np.array([uxmax, uymax]), alp, ax, ay)
     f, axarr = plt.subplots(1, 2, figsize = (16, 8))
@@ -81,7 +82,7 @@ def causPlotter(uxmax, uymax, alp, ax, ay, m = 1000, n = 1000):
         upx, upy = mapToUp(cuvert, alp, ax, ay)
         axarr[1].plot(upx, upy, color = 'blue')
     if m != 1000 and n != 1000:
-        roots = polishedRoots(causticEqSlice, uxmax, uymax, args = (alp, m, n, ax, ay)).T
+        roots = polishedRoots(causticEqSlice, 2*uxmax, 2*uymax, args = (alp, m, n, ax, ay)).T
         axarr[1].plot(rx, rx*m + n, color = 'green')
         rootupx, rootupy = mapToUp(roots, alp, ax, ay)
         axarr[1].scatter(rootupx, rootupy, color = 'green')
@@ -107,7 +108,7 @@ def findRoots(func, uxmax, uymax, args = (), N = 500, plot = False):
         intersection = poly1.intersection(poly2)
         # print(intersection)
         try:
-            coo = np.ones([5, 2])*1000
+            coo = np.ones([100, 2])*1000
             for a in range(len(intersection)):
                 coo[a] = np.asarray(list(intersection[a].coords))
         except:
@@ -186,7 +187,7 @@ def rootFinder(segs, nreal, ncomplex, npoints, ucross, uxmax, uymax, coeff):
             croot = op.root(compLensEq, [ucross[0], guess, ucross[1], guess], args=(uppoint, coeff))
             # print(croot)
             # check that the root finder finds the correct complex ray
-            if croot.success and np.abs(croot.x[1]) > 1e-6*np.abs(croot.x[0]) and np.abs(croot.x[0] - ucross[0]) < 0.5:
+            if croot.success and np.abs(croot.x[1]) > 1e-6*np.abs(croot.x[0]) and np.abs(croot.x[0] - ucross[0]) < 0.1:
                 print([ucross, croot.x])
                 croot1 = [croot.x[0] + 1j*croot.x[1], croot.x[2] + 1j*croot.x[3]]
                 return croot1
