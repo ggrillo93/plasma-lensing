@@ -4,14 +4,16 @@ from scipy.special import gamma as gfunc
 # Phase
 def phi(uvec, rF2, lc, ax, ay):
     """ Returns the phase at a stationary point. """
-    grad = lensg(*uvec)
+    ux, uy = uvec
+    grad = lensg(ux, uy)
     return 0.5*rF2*lc**2*((grad[0]/ax)**2 + (grad[1]/ay)**2) + lc*lensfun(*uvec)
 
 # Field
 def GOfield(uvec, rF2, lc, ax, ay):
     """ Returns the elements of the geometrical optics field: the amplitude and the phase, including the phase shift as determined by the sign of the derivatives. """
+    ux, uy = uvec
     alp = rF2*lc
-    psi20, psi02, psi11 = lensh(*uvec)
+    psi20, psi02, psi11 = lensh(ux, uy)
     phi20 = ax**2/rF2 + lc*psi20
     phi02 = ay**2/rF2 + lc*psi02
     phi11 = lc*psi11
@@ -26,7 +28,8 @@ def GOfield(uvec, rF2, lc, ax, ay):
 # TOA perturbation
 def deltat(uvec, tg0, tdm0, alp, ax, ay):
     """ Returns TOA perturbation in us at a stationary point. Coefficients: tg0 = dso/(2*c*dsl*dlo), tdm0 = c*re*dm/(2*pi*f**2). """
-    grad = lensg(*uvec)
+    ux, uy = uvec
+    grad = lensg(ux, uy)
     return 1e6*(tg0*alp**2*((grad[0]/ax)**2 + (grad[1]/ay)**2) + tdm0*lensfun(*uvec))
 
 # Momentarily useless stuff

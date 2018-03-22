@@ -216,10 +216,13 @@ def planeSliceTOA(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints):
     ncomplex = np.zeros(nzones) # don't care about complex solutions in this case
     print(nreal)
     
+    # Find roots
+    allroots = rootFinder(segs, nreal, ncomplex, npoints, ucross, uxmax, uymax, coeff)
+    
     # Calculate TOAs
     alltoas = []
     for i in range(nzones):
-        toas = obsCalc(deltat, allroots[i], nsolns[i], npoints, 1, args = (tg0, tdm0, alp, ax, ay)).real
+        toas = obsCalc(deltat, allroots[i], int(nreal[i]), npoints, 1, args = (tg0, tdm0, alp, ax, ay)).real
         alltoas.append(toas)
     
     # Plots
@@ -245,7 +248,7 @@ def planeSliceTOA(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints):
     ax1.set_ylabel(r"$u'_y$")
     ax1.set_xlim(-uxmax, uxmax)
     ax1.set_title("Caustic curves")
-    ax1.set_aspect('equal', anchor = 'C')
+    ax1.set_aspect('equal', anchor = 'N')
     ax1.grid()
     
     ax2 = plt.subplot(grid[:, 0]) # Plot results
@@ -258,25 +261,27 @@ def planeSliceTOA(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints):
     ax2.set_xlabel(r"$u'_x$")
     ax2.grid()
     
+    
     # Create table
     col_labels = ['Parameter', 'Value']
     if np.abs(dm/pctocm) < 1:
         dmlabel = "{:.2E}".format(Decimal(dm/pctocm))
     else:
         dmlabel = str(dm/pctocm)
-    tablevals = [[r'$d_{so} \: (kpc)$', np.around(dso/pctocm/kpc, 2)], [r'$d_{sl} \: (kpc)$', np.around(dsl/pctocm/kpc, 2)], [r'$a_x \: (AU)$', np.around(ax/autocm, 2)], [r'$a_y \: (AU)$', np.around(ay/autocm, 2)], [r'$DM_l \: (pc \, cm^{-3})$', dmlabel], [r"$\nu$ (GHz)", f/GHz], ['Slope', m], ['Offset', n]]
+    tablevals = [[r'$d_{so} \: (kpc)$', np.around(dso/pctocm/kpc, 2)], [r'$d_{sl} \: (kpc)$', np.around(dsl/pctocm/kpc, 2)], [r'$a_x \: (AU)$', np.around(ax/autocm, 2)], [r'$a_y \: (AU)$', np.around(ay/autocm, 2)], [r'$DM_l \: (pc \, cm^{-3})$', dmlabel], [r"$\nu$ (GHz)", np.around(f/GHz, 2)], ['Slope', m], ['Offset', n], ['Lens shape', '$%s$' %sym.latex(lensf)]]
     ax0.axis('tight')
     ax0.axis('off')
+    ax0.set_anchor('N')
     table = ax0.table(cellText = tablevals, colWidths = [0.25, 0.25], colLabels = col_labels, loc = 'center')
     table.auto_set_font_size(False)
-    table.set_fontsize(14)
-    table.scale(3.2, 3.2)
+    table.set_fontsize(12)
+    table.scale(3., 3.)
     
     plt.show()
     return
     
 # @profile    
-def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 4000, gsizex = 2048, gsizey = 2048):
+def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 3000, gsizex = 2048, gsizey = 2048):
     """ Plots gain for slice across the u'-plane for given lens parameters, observation frequency, uxmax, slope m and offset n. Compares it to the gain given by solving the Kirchhoff diffraction integral using convolution. Plots the slice gain and the entire u' plane gain. """
 
     # Calculate coefficients
@@ -294,6 +299,7 @@ def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 4000, gsi
     upcross = upcross.T[p]
     ucross = ucross[p]
     print(upcross)
+    print(ucross)
 
     # Calculate sign of second derivative at caustics
     sigs = np.zeros(ncross)
@@ -398,6 +404,8 @@ def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 4000, gsi
     ax0.scatter(upcross.T[0], upcross.T[1], color = 'white')
     ax0.plot(rx2, rx2*m + n, color = 'white') # Plot observer motion
     ax0.set_xlabel(r"$u'_x$")
+    ax0.set_ylim([-uymax, uymax])
+    ax0.set_xlim([-uxmax, uxmax])
     ax0.set_ylabel(r"$u'_y$")
     ax0.set_title("Gain in the u' plane")
 
@@ -419,12 +427,12 @@ def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 4000, gsi
         dmlabel = "{:.2E}".format(Decimal(dm/pctocm))
     else:
         dmlabel = str(dm/pctocm)
-    tablevals = [[r'$d_{so} \: (kpc)$', np.around(dso/pctocm/kpc, 2)], [r'$d_{sl} \: (kpc)$', np.around(dsl/pctocm/kpc, 3)], [r'$a_x \: (AU)$', np.around(ax/autocm, 3)], [r'$a_y \: (AU)$', np.around(ay/autocm, 3)], [r'$DM_l \: (pc \, cm^{-3})$', dmlabel], [r"$\nu$ (GHz)", f/GHz], ['Slope', np.around(m, 2)], ['Offset', n]]
+    tablevals = [[r'$d_{so} \: (kpc)$', np.around(dso/pctocm/kpc, 2)], [r'$d_{sl} \: (kpc)$', np.around(dsl/pctocm/kpc, 3)], [r'$a_x \: (AU)$', np.around(ax/autocm, 3)], [r'$a_y \: (AU)$', np.around(ay/autocm, 3)], [r'$DM_l \: (pc \, cm^{-3})$', dmlabel], [r"$\nu$ (GHz)", f/GHz], ['Slope', np.around(m, 2)], ['Offset', n], ['Lens shape', '$%s$' %sym.latex(lensf)]]
     tableax.axis('tight')
     tableax.axis('off')
-    table = tableax.table(cellText = np.asarray(tablevals).T, colWidths = np.ones(8)*0.05, rowLabels = col_labels, loc = 'center')
+    table = tableax.table(cellText = np.asarray(tablevals).T, colWidths = np.append(np.ones(8)*0.045, np.ones(1)*0.07), rowLabels = col_labels, loc = 'center')
     table.auto_set_font_size(False)
-    table.set_fontsize(12)
+    table.set_fontsize(11)
     table.scale(2.5, 2.5)
 
     plt.show()

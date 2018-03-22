@@ -11,13 +11,14 @@ kpc = 1e3
 autocm = 1.4960e13
 pi = np.pi
 
-ux, uy = sym.symbols('ux uy')
-lensfun = sym.exp(-ux**2 - uy**2)# *(1. - 5e-1*sym.sin(50*(ux + uy)))
-lensg = np.array([sym.diff(lensfun, ux), sym.diff(lensfun, uy)])
-lensh = np.array([sym.diff(lensfun, ux, ux), sym.diff(lensfun, uy, uy), sym.diff(lensfun, ux, uy)])
-lensfun = sym.lambdify([ux, uy], lensfun, "numpy")
-lensg = sym.lambdify([ux, uy], lensg, "numpy")
-lensh = sym.lambdify([ux, uy], lensh, "numpy")
+u_x, u_y = sym.symbols('u_x u_y')
+A, B = 5e-3, 35
+lensf = (u_x**4 + u_y**4)*sym.exp(-u_x**2 - u_y**2) #*(1. - A*sym.sin(B*(u_x + u_y)))
+lensg = np.array([sym.diff(lensf, u_x), sym.diff(lensf, u_y)])
+lensh = np.array([sym.diff(lensf, u_x, u_x), sym.diff(lensf, u_y, u_y), sym.diff(lensf, u_x, u_y)])
+lensfun = sym.lambdify([u_x, u_y], lensf, "numpy")
+lensg = sym.lambdify([u_x, u_y], lensg, "numpy")
+lensh = sym.lambdify([u_x, u_y], lensh, "numpy")
 
 @jit(nopython=True)
 def alpha(dso, dsl, f, dm):

@@ -1,6 +1,7 @@
 from fundfunctions import *
 import matplotlib.pyplot as plt
 import scipy.optimize as op
+from matplotlib import gridspec as gs
 from shapely import geometry
 
 def compLensEq(uvec, upvec, coeff):
@@ -69,29 +70,42 @@ def causPlotter(uxmax, uymax, alp, ax, ay, m = 1000, n = 1000):
     #     return
     ucaus = causCurve(uvec, coeff)
     upmax = mapToUp(np.array([uxmax, uymax]), alp, ax, ay)
-    f, axarr = plt.subplots(1, 2, figsize = (16, 8))
-    cs = axarr[0].contour(rx, ry, ucaus, levels = [0, np.inf], colors = 'red')
-    axarr[0].set_xlabel(r'$u_x$')
-    axarr[0].set_ylabel(r'$u_y$')
-    axarr[0].set_title('Caustic surfaces in the u-plane')
-    axarr[0].grid()
+    fig = plt.figure(figsize=(15, 10))
+    grid = gs.GridSpec(2, 2, height_ratios=[3, 1])
+    tableax = plt.subplot(grid[1, :])
+    ax0, ax1 = plt.subplot(grid[0, 0]), plt.subplot(grid[0, 1])
+    cs = ax0.contour(rx, ry, ucaus, levels = [0, np.inf], colors = 'red')
+    ax0.set_xlabel(r'$u_x$')
+    ax0.set_ylabel(r'$u_y$')
+    ax0.set_title('Caustic surfaces in the u-plane')
+    ax0.grid()
     paths = cs.collections[0].get_paths()
     uppaths = []
     for p in paths:
         cuvert = np.array(p.vertices).T
         upx, upy = mapToUp(cuvert, alp, ax, ay)
-        axarr[1].plot(upx, upy, color = 'blue')
+        ax1.plot(upx, upy, color = 'blue')
     if m != 1000 and n != 1000:
         roots = polishedRoots(causticEqSlice, 2*uxmax, 2*uymax, args = (alp, m, n, ax, ay)).T
-        axarr[1].plot(rx, rx*m + n, color = 'green')
+        ax1.plot(rx, rx*m + n, color = 'green')
         rootupx, rootupy = mapToUp(roots, alp, ax, ay)
-        axarr[1].scatter(rootupx, rootupy, color = 'green')
-    axarr[1].set_xlabel(r"$u'_x$")
-    axarr[1].set_ylabel(r"$u'_y$")
-    axarr[1].set_xlim(-upmax[0], upmax[0])
-    axarr[1].set_ylim(-upmax[1], upmax[1])
-    axarr[1].set_title("Caustic surfaces in the u'-plane")
-    axarr[1].grid()
+        ax1.scatter(rootupx, rootupy, color = 'green')
+    ax1.set_xlabel(r"$u'_x$")
+    ax1.set_ylabel(r"$u'_y$")
+    ax1.set_xlim(-upmax[0], upmax[0])
+    ax1.set_ylim(-upmax[1], upmax[1])
+    ax1.set_title("Caustic surfaces in the u'-plane")
+    ax1.grid()
+    
+    col_labels = ['Parameter', 'Value'] # Create table with parameter values
+    tablevals = [[r'$\alpha \: (AU^2)$', np.around(alp/autocm**2,3)], [r'$a_x \: (AU)$', np.around(ax/autocm, 3)], [r'$a_y \: (AU)$', np.around(ay/autocm, 3)], ['Slope', np.around(m, 2)], ['Offset', n], ['Lens shape', '$%s$' %sym.latex(lensf)]]
+    tableax.axis('tight')
+    tableax.axis('off')
+    table = tableax.table(cellText = np.asarray(tablevals).T, colWidths = [0.045, 0.045, 0.045, 0.045, 0.045, 0.12], rowLabels = col_labels, loc = 'center', cellLoc = 'center')
+    table.auto_set_font_size(False)
+    table.set_fontsize(11)
+    table.scale(3., 3.)
+    
     plt.show()
     return
 
@@ -245,7 +259,6 @@ def rootFinder(segs, nreal, ncomplex, npoints, ucross, uxmax, uymax, coeff):
                 seg = np.flipud(seg)
                 roots = np.flipud(roots)
                 p = i
-            # print(p)
             scomp = findFirstComp(ucross[p], seg[0])
             roots[0][int(nreal[i])] = scomp
             roots = findAllComp(roots, seg, int(nreal[i]))
@@ -253,11 +266,15 @@ def rootFinder(segs, nreal, ncomplex, npoints, ucross, uxmax, uymax, coeff):
                 seg = np.flipud(seg) # flip back
                 roots = np.flipud(roots)
             if ncomplex[i] == 2:
-                seg = np.flipud(seg)
-                roots = np.flipud(roots)
-                scomp = findFirstComp(ucross[p+1], seg[0])
+                if i > len(segs)/2:
+                    seg = np.flipud(seg)
+                    roots = np.flipud(roots)
+                    scomp = findFirstComp(ucross[p + 1], seg[0])
+                else:
+                    scomp = findFirstComp(ucross[p - 1], seg[0])
                 roots[0][int(nreal[i]) + 1] = scomp
                 roots = findAllComp(roots, seg, int(nreal[i]) + 1)
-                roots = np.flipud(roots)
+                if i > len(segs)/2:
+                    roots = np.flipud(roots)
         allroots.append(roots)
     return allroots
