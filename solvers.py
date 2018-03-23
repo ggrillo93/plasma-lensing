@@ -30,6 +30,13 @@ def causCurve(uvec, coeff):
     psi20, psi02, psi11 = lensh(ux, uy)
     return 1 + coeff[0]*psi20 + coeff[1]*psi02 - coeff[0]*coeff[1]*(psi11**2 - psi20*psi02)
 
+def causCurveFreq(uvec, ax, ay, m, n):
+    ux, uy = uvec
+    psi20, psi02, psi11 = lensh(ux, uy)
+    psi10, psi01 = lensg(ux, uy)
+    gamma = (uy - m*ux - n)/(m*psi10/ax**2 - psi01/ay**2)
+    return 1 + gamma*(psi20/ax**2 + psi02/ay**2) - gamma**2*(psi11**2 - psi02*psi20)/(ax*ay)**2
+
 def causticEqSlice(uvec, alp, m, n, ax, ay):
     """ Evaluates the caustic equations for a slice across the u'-plane for given ux, uy, slope m and offset n, and lens parameters. Input in cgs units. """
     ux, uy = uvec
@@ -201,7 +208,7 @@ def rootFinder(segs, nreal, ncomplex, npoints, ucross, uxmax, uymax, coeff):
             croot = op.root(compLensEq, [ucross[0], guess, ucross[1], guess], args=(uppoint, coeff))
             # print(croot)
             # check that the root finder finds the correct complex ray
-            if croot.success and np.abs(croot.x[1]) > 1e-6*np.abs(croot.x[0]) and np.abs(croot.x[0] - ucross[0]) < 0.1:
+            if croot.success and np.abs(croot.x[1]) > 1e-6*np.abs(croot.x[0]) and np.abs(croot.x[0] - ucross[0]) < 0.1 and np.abs(croot.x[1]/croot.x[0]) < 1.:
                 print([ucross, croot.x])
                 croot1 = [croot.x[0] + 1j*croot.x[1], croot.x[2] + 1j*croot.x[3]]
                 return croot1

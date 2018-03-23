@@ -382,8 +382,9 @@ def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 3000, gsi
 
     # Plots
     fig = plt.figure(figsize = (15, 10))
-    grid = gs.GridSpec(2, 2, height_ratios = [3, 1])
+    grid = gs.GridSpec(3, 2, height_ratios = [4, 1, 0.2])
     tableax = plt.subplot(grid[1, :])
+    tableax2 = plt.subplot(grid[2, :])
     ax0, ax1 = plt.subplot(grid[0, 0]), plt.subplot(grid[0, 1])
 
     rx = np.linspace(-uxmax, uxmax, gsizex)
@@ -427,13 +428,22 @@ def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 3000, gsi
         dmlabel = "{:.2E}".format(Decimal(dm/pctocm))
     else:
         dmlabel = str(dm/pctocm)
-    tablevals = [[r'$d_{so} \: (kpc)$', np.around(dso/pctocm/kpc, 2)], [r'$d_{sl} \: (kpc)$', np.around(dsl/pctocm/kpc, 3)], [r'$a_x \: (AU)$', np.around(ax/autocm, 3)], [r'$a_y \: (AU)$', np.around(ay/autocm, 3)], [r'$DM_l \: (pc \, cm^{-3})$', dmlabel], [r"$\nu$ (GHz)", f/GHz], ['Slope', np.around(m, 2)], ['Offset', n], ['Lens shape', '$%s$' %sym.latex(lensf)]]
+    tablevals = [[r'$d_{so} \: (kpc)$', np.around(dso/pctocm/kpc, 2)], [r'$d_{sl} \: (kpc)$', np.around(dsl/pctocm/kpc, 3)], [r'$a_x \: (AU)$', np.around(ax/autocm, 3)], [r'$a_y \: (AU)$', np.around(ay/autocm, 3)], [r'$DM_l \: (pc \, cm^{-3})$', dmlabel], [r"$\nu$ (GHz)", f/GHz], ['Slope', np.around(m, 2)], ['Offset', n]]
     tableax.axis('tight')
     tableax.axis('off')
-    table = tableax.table(cellText = np.asarray(tablevals).T, colWidths = np.append(np.ones(8)*0.045, np.ones(1)*0.07), rowLabels = col_labels, loc = 'center')
+    table = tableax.table(cellText = np.asarray(tablevals).T, colWidths = np.ones(8)*0.045, rowLabels = col_labels, loc = 'center')
     table.auto_set_font_size(False)
     table.set_fontsize(11)
     table.scale(2.5, 2.5)
+    
+    row_label =  ['Lens shape']
+    val = [['$%s$' % sym.latex(lensf)]]
+    tableax2.axis('tight')
+    tableax2.axis('off')
+    table2 = tableax2.table(cellText=val, colWidths=[0.0015*len(sym.latex(lensf))], rowLabels=row_label, loc='top')
+    table2.auto_set_font_size(False)
+    table2.set_fontsize(12)
+    table2.scale(2.5, 2.5)
 
     plt.show()
     return
