@@ -201,7 +201,7 @@ def planeSliceTOA(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints):
     else:
         xmax = uxmax
         
-    cdist = uxmax/(np.abs(5*lc))
+    cdist = uxmax/(np.abs(50*lc))
     
     bound = np.insert(upcross, 0, np.array([[xmin, ymin]]), axis = 0) # set up boundaries
     bound = np.append(bound, np.array([[xmax, ymax]]), axis = 0)
@@ -259,6 +259,7 @@ def planeSliceTOA(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints):
             ax2.plot(upxvecs[i], zone[j], color = 'black')
     ax2.set_ylabel(r'$\Delta t \: (\mu s)$')
     ax2.set_xlabel(r"$u'_x$")
+    ax2.set_title('Lens shape: ' + '$%s$' % sym.latex(lensf))
     ax2.grid()
     
     
@@ -268,7 +269,7 @@ def planeSliceTOA(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints):
         dmlabel = "{:.2E}".format(Decimal(dm/pctocm))
     else:
         dmlabel = str(dm/pctocm)
-    tablevals = [[r'$d_{so} \: (kpc)$', np.around(dso/pctocm/kpc, 2)], [r'$d_{sl} \: (kpc)$', np.around(dsl/pctocm/kpc, 2)], [r'$a_x \: (AU)$', np.around(ax/autocm, 2)], [r'$a_y \: (AU)$', np.around(ay/autocm, 2)], [r'$DM_l \: (pc \, cm^{-3})$', dmlabel], [r"$\nu$ (GHz)", np.around(f/GHz, 2)], ['Slope', m], ['Offset', n], ['Lens shape', '$%s$' %sym.latex(lensf)]]
+    tablevals = [[r'$d_{so} \: (kpc)$', np.around(dso/pctocm/kpc, 2)], [r'$d_{sl} \: (kpc)$', np.around(dsl/pctocm/kpc, 2)], [r'$a_x \: (AU)$', np.around(ax/autocm, 2)], [r'$a_y \: (AU)$', np.around(ay/autocm, 2)], [r'$DM_l \: (pc \, cm^{-3})$', dmlabel], [r"$\nu$ (GHz)", np.around(f/GHz, 2)], ['Slope', m], ['Offset', n]]
     ax0.axis('tight')
     ax0.axis('off')
     ax0.set_anchor('N')

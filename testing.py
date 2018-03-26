@@ -3,16 +3,16 @@ from observables import *
 from upslice import *
 from kdi import *
 
-dso, dsl, f, dm, ax, ay = 1.1*kpc*pctocm, 0.55*kpc*pctocm, 1.0*GHz, -5e-6*pctocm, 0.03*autocm, 0.04*autocm
+dso, dsl, f, dm, ax, ay = 1.1*kpc*pctocm, 0.55*kpc*pctocm, 0.8*GHz, -2e-6*pctocm, 0.02*autocm, 0.03*autocm
 alp = alpha(dso, dsl, f, dm)
 
 # planeSliceTOA(5., 5., dso, dsl, f, dm, 0.5, 0., ax, ay, 1000)
 
 # for f in np.linspace(0.8, 1.2, 10)*GHz:
 #     planeSliceTOA(1.5, 1.5, dso, dsl, f, dm, 0.5, 0., ax, ay, 1000)
-# causPlotter(2., 1.5, alp, ax, ay, m=0., n=1.)
+# causPlotter(5., 5., alp, ax, ay, m=1., n=0.)
 # solveKDI(2., 2., dso, dsl, f, dm, ax, ay, 2048, 2048, m=1, n=0.5)
-planeSliceG(2., 1.5, dso, dsl, f, dm, 0.5, 0., ax, ay, gsizex = 1.5*2048, gsizey = 1.5*2048)
+planeSliceG(5., 5., dso, dsl, f, dm, 0.5, 0., ax, ay, gsizex = 2048, gsizey = 2048)
 
 # Test cases
 def runTests():

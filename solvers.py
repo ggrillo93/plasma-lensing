@@ -273,7 +273,7 @@ def rootFinder(segs, nreal, ncomplex, npoints, ucross, uxmax, uymax, coeff):
                 seg = np.flipud(seg) # flip back
                 roots = np.flipud(roots)
             if ncomplex[i] == 2:
-                if i > len(segs)/2:
+                if i >= len(segs)/2:
                     seg = np.flipud(seg)
                     roots = np.flipud(roots)
                     scomp = findFirstComp(ucross[p + 1], seg[0])
@@ -281,7 +281,8 @@ def rootFinder(segs, nreal, ncomplex, npoints, ucross, uxmax, uymax, coeff):
                     scomp = findFirstComp(ucross[p - 1], seg[0])
                 roots[0][int(nreal[i]) + 1] = scomp
                 roots = findAllComp(roots, seg, int(nreal[i]) + 1)
-                if i > len(segs)/2:
+                print(roots)
+                if i >= len(segs)/2:
                     roots = np.flipud(roots)
         allroots.append(roots)
     return allroots
