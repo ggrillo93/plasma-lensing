@@ -25,6 +25,23 @@ def findClosest(roots):
     ij_min = np.where(dist == mdist)
     return [ij_min[0], mdist]
 
+
+def obsCalcFreq(func, roots, nroots, npoints, ansdim, fvec, args=()):
+    """ Calculates observable using observable function func for a list of roots of arbitrary dimensionality. Returns multidimensional array with shape [nroots, ansdim, npoints]. """
+    if ansdim == 1:
+        obs = np.zeros([nroots, npoints], dtype=complex)
+        for i in range(npoints):
+            for j in range(nroots):
+                obs[j][i] = func(roots[i][j], *args)
+    else:
+        obs = np.zeros([nroots, ansdim, npoints], dtype=complex)
+        for i in range(npoints):
+            for j in range(nroots):
+                ans = func(roots[i][j], *args)
+                for k in range(ansdim):
+                    obs[j][k][i] = ans[k]
+    return obs
+
 def obsCalc(func, roots, nroots, npoints, ansdim, args = ()):
     """ Calculates observable using observable function func for a list of roots of arbitrary dimensionality. Returns multidimensional array with shape [nroots, ansdim, npoints]. """
     if ansdim == 1:
@@ -78,12 +95,12 @@ def uniAsymp(allroots, allfields, nreal, ncomplex, npoints, nzones, sigs):
         else: # deal with merging real roots
             merge = [findClosest(roots[0][:realn].real), findClosest(roots[-1][:realn].real)] # find closest real roots at each end
             mroot1, mroot2 = merge[0][0], merge[1][0] # set indices of merging roots
-            print([mroot1, mroot2])
+            # print([mroot1, mroot2])
             # print([merge[0][1], merge[1][1]])
             nmroots1 = list(set(range(realn)) - set(mroot1)) # indices of non merging roots at one end
             nmroots2 = list(set(range(realn)) - set(mroot2)) # indices of non merging roots at other end
             if merge[0][1] < 0.4 and merge[1][1] < 0.4: # case 1: real root merging at both ends
-                print('Double root merging')
+                # print('Double root merging')
                 if np.all(mroot1 == mroot2): # same root merges at both ends
                     A1, phi1 = fields[mroot1[0]][:2]
                     A2, phi2 = fields[mroot1[1]][:2]
@@ -113,7 +130,7 @@ def uniAsymp(allroots, allfields, nreal, ncomplex, npoints, nzones, sigs):
                         anonm2 = anonm2 + nmfields2[j]
                     areal = np.concatenate((amerge1 + anonm1, amerge2 + anonm2))
             elif merge[0][1] < 0.4 and merge[1][1] > 0.4: # case 2: real root merging at first end only
-                print('Root merging at first end')
+                # print('Root merging at first end')
                 A1, phi1 = fields[mroot1[0]][:2]
                 A2, phi2 = fields[mroot1[1]][:2]
                 if i < nzones/2.:
@@ -125,7 +142,7 @@ def uniAsymp(allroots, allfields, nreal, ncomplex, npoints, nzones, sigs):
                     anonm = anonm + constructField(*fields[index]) # sum of fields not involved in merging
                 areal = amerge + anonm
             elif merge[0][1] > 0.4 and merge[1][1] < 0.4: # case 3: real root merging at second end only
-                print('Root merging at second end')
+                # print('Root merging at second end')
                 A1, phi1 = fields[mroot2[0]][:2]
                 A2, phi2 = fields[mroot2[1]][:2]
                 if i < nzones/2:
@@ -280,8 +297,7 @@ def planeSliceTOA(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints):
     
     plt.show()
     return
-    
-# @profile    
+     
 def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 3000, gsizex = 2048, gsizey = 2048):
     """ Plots gain for slice across the u'-plane for given lens parameters, observation frequency, uxmax, slope m and offset n. Compares it to the gain given by solving the Kirchhoff diffraction integral using convolution. Plots the slice gain and the entire u' plane gain. """
 

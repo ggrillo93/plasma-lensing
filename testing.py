@@ -1,18 +1,59 @@
 from solvers import *
 from observables import *
 from upslice import *
+from fslice import *
 from kdi import *
+from dspectra import *
 
-dso, dsl, f, dm, ax, ay = 1.1*kpc*pctocm, 0.55*kpc*pctocm, 0.8*GHz, -2e-6*pctocm, 0.02*autocm, 0.03*autocm
+dso, dsl, f, dm, ax, ay = 1.1*kpc*pctocm, 0.55*kpc*pctocm, 0.8*GHz, -1e-4*pctocm, 0.1*autocm, 0.2*autocm
+# m, n = -2.2/1.2, 0.5
 alp = alpha(dso, dsl, f, dm)
+# dspectra(0.1*GHz, 4.*GHz, 5., 5., dso, dsl, dm, ax, ay, 1., 3.)
 
+# coeff = alp*np.array([1./ax**2, 1./ay**2])
+# polishedRoots(lensEq, 5., 5., args=([2., 2.], coeff), plot = True)
+# fsliceG([0.15, 0.15], 0.3*GHz, 3.*GHz, dso, dsl, dm, ax, ay, npoints=1000, plot=True)
+fsliceGfull([-0.95, -0.95], 5., 5., 0.1*GHz, 2.*GHz, dso, dsl, dm, ax, ay, 1., 0., comp=False)
 # planeSliceTOA(5., 5., dso, dsl, f, dm, 0.5, 0., ax, ay, 1000)
+# upx = -2.
+# roots = findRoots(causEqFreq, 5., 5., args = (upx, ax, ay, 0.5, 0.5), plot = True, N = 1000)
+# print(roots)
+# freqcaustics = []
+# dlo = dso - dsl
+# coeff = dsl*dlo*re*dm/(2*pi*dso)
+# for root in roots:
+#     ux, uy = root
+#     arg = coeff*lensg(*root)[0]/(ux - upx)
+#     if arg > 0:
+#         freqcaustics.append([c*np.sqrt(arg)/(ax*GHz), ux, uy])
+# freqcaustics = np.asarray(freqcaustics)
+# p = np.argsort(freqcaustics.T[0])
+# freqcaustics = freqcaustics[p]
+# print(freqcaustics)
+# for i in range(len(freqcaustics)):
+#     freq = freqcaustics[i][0]*GHz
+#     rF2 = rFsqr(dso, dsl, freq)
+#     lc = lensc(dm, freq)
+#     uvec = freqcaustics[i][1:]
+#     print(GOfield(uvec, rF2, lc, ax, ay)[0]**2)
+
+# causCurveFreq(5., 5., ax, ay, dso, dsl, dm, 1., 0., N=500)
+# upxvec = np.linspace(-5., 2., 2000)
+# # upvec = np.array([-4.5, -2.])
+# mat = np.zeros([2000, 2000])
+# for i in range(len(upxvec)):
+#     print(i)
+#     upy = upxvec[i] + 3
+#     upvec = np.array([upxvec[i], upy])
+#     mat[i] = fsliceG(upvec, 0.3*GHz, 1.4*GHz, dso, dsl, dm, ax, ay, npoints = 1000, plot = False)[1]
+# np.savetxt('test2.out', mat, delimiter=',')
+
 
 # for f in np.linspace(0.8, 1.2, 10)*GHz:
 #     planeSliceTOA(1.5, 1.5, dso, dsl, f, dm, 0.5, 0., ax, ay, 1000)
 # causPlotter(5., 5., alp, ax, ay, m=1., n=0.)
 # solveKDI(2., 2., dso, dsl, f, dm, ax, ay, 2048, 2048, m=1, n=0.5)
-planeSliceG(5., 5., dso, dsl, f, dm, 0.5, 0., ax, ay, gsizex = 2048, gsizey = 2048)
+# planeSliceG(4., 3., dso, dsl, f, dm, 0.5, 0., ax, ay, gsizex = 1.5*2048, gsizey = 1.5*2048)
 
 # Test cases
 def runTests():
