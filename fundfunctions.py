@@ -1,6 +1,11 @@
 from numba import jit
 import numpy as np
 import sympy as sym
+from scipy.special import airy
+from scipy.spatial.distance import *
+from matplotlib import gridspec as gs
+from matplotlib import pyplot as plt
+from decimal import Decimal
 
 c = 2.998e10
 pctocm = 3.0856e18

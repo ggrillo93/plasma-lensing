@@ -1,7 +1,5 @@
 from fundfunctions import *
-import matplotlib.pyplot as plt
 import scipy.optimize as op
-from matplotlib import gridspec as gs
 from shapely import geometry
 
 def compLensEq(uvec, upvec, coeff):
@@ -434,7 +432,7 @@ def rootFinderFreq(segs, nreal, ncomplex, npoints, ucross, upvec, coeff):
     for i in range(len(segs)):
         seg = segs[i]
         leqcoeff = coeff/seg[npoints/2]**2
-        sreal = polishedRoots(lensEq, np.abs(upx) + 3., np.abs(upy) + 3., args = (upvec, leqcoeff), plot = True) # starting real roots
+        sreal = polishedRoots(lensEq, np.abs(upx) + 3., np.abs(upy) + 3., args = (upvec, leqcoeff)) # starting real roots
         # print(sreal)
         roots = np.zeros([npoints, int(nreal[i] + ncomplex[i]), 2], dtype = complex)
         for j in range(int(nreal[i])):

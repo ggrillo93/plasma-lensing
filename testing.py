@@ -6,14 +6,13 @@ from kdi import *
 from dspectra import *
 
 dso, dsl, f, dm, ax, ay = 1.1*kpc*pctocm, 0.55*kpc*pctocm, 0.8*GHz, -1e-4*pctocm, 0.1*autocm, 0.2*autocm
-# m, n = -2.2/1.2, 0.5
-alp = alpha(dso, dsl, f, dm)
+m, n = 1., 0.
+# alp = alpha(dso, dsl, f, dm)
 # dspectra(0.1*GHz, 4.*GHz, 5., 5., dso, dsl, dm, ax, ay, 1., 3.)
-
 # coeff = alp*np.array([1./ax**2, 1./ay**2])
 # polishedRoots(lensEq, 5., 5., args=([2., 2.], coeff), plot = True)
 # fsliceG([0.15, 0.15], 0.3*GHz, 3.*GHz, dso, dsl, dm, ax, ay, npoints=1000, plot=True)
-fsliceGfull([-0.95, -0.95], 5., 5., 0.1*GHz, 2.*GHz, dso, dsl, dm, ax, ay, 1., 0., comp=False)
+# fsliceGfull([-3., -3.], 5., 5., 0.1*GHz, 1.5*GHz, dso, dsl, dm, ax, ay, 1., 0., comp=True)
 # planeSliceTOA(5., 5., dso, dsl, f, dm, 0.5, 0., ax, ay, 1000)
 # upx = -2.
 # roots = findRoots(causEqFreq, 5., 5., args = (upx, ax, ay, 0.5, 0.5), plot = True, N = 1000)

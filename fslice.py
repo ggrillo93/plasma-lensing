@@ -3,7 +3,7 @@ from observables import *
 from solvers import *
 from upslice import *
 
-def fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, npoints = 3000, comp = True, plot = True):
+def fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, npoints = 3000, comp = True, plot = False):
     
     # Calculate coefficients
     fcoeff = dsl*(dso - dsl)*re*dm/(2*pi*dso)
@@ -84,6 +84,7 @@ def fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, npoints = 3000, comp = True
                 ans = GOfield(roots[i][j], rF2, lc, ax, ay)
                 for k in range(3):
                     fields[j][k][i] = ans[k]
+        print(fields.shape)
         allfields.append(fields)
     
     # Construct uniform asymptotics
@@ -129,10 +130,7 @@ def fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, npoints = 3000, comp = True
     
     return np.array([finf/GHz, asymG, fcross])
     
-def fsliceGBulk(upvec, fmin, fmax, fcaus, leqinv, ax, ay, rx, ry, uvec, coeffvec, cdist, npoints = 3000, comp = True, plot = False):
-    
-    # Extract coefficients
-    coeff, rF2p, lcp = coeffvec
+def fsliceGBulk(upvec, fcaus, fmin, fmax, leqinv, ax, ay, rx, ry, uvec, rF2p, lcp, coeff, cdist, npoints, comp, plot = False):
     
     ucross, fcross = fcaus
     # print(fcross/GHz)
@@ -193,43 +191,22 @@ def fsliceGBulk(upvec, fmin, fmax, fcaus, leqinv, ax, ay, rx, ry, uvec, coeffvec
     
     # Construct uniform asymptotics
     asymp = uniAsymp(allroots, allfields, nreal, ncomplex, npoints, nzones, sigs)
-    interp = UnivariateSpline(np.sort(segs.flatten()), asymp, s = 0)
-    finf = np.linspace(fmin + cdist, fmax, npoints)
+    interp = interp1d(np.sort(segs.flatten()), asymp)
+    finf = np.linspace(fmin + cdist, fmax - cdist, npoints)
     asymG = interp(finf)
     
     if plot:
         # Plots
         fig = plt.figure(figsize=(15, 10))
-        grid = gs.GridSpec(1, 2, width_ratios=[5, 1])
-        ax0 = plt.subplot(grid[0, 0])
-        ax1 = plt.subplot(grid[0, 1])
-        
-        ax0.plot(finf/GHz, asymG, color = 'black')
-        ax0.set_ylabel(r'$G$')
-        ax0.set_xlabel(r"$\nu$ (GHz)")
-        ax0.set_title('Lens shape: ' + '$%s$' % sym.latex(lensf))
+        plt.plot(finf/GHz, asymG, color = 'black')
+        plt.ylabel(r'$G$')
+        plt.xlabel(r"$\nu$ (GHz)")
+        plt.title('Lens shape: ' + '$%s$' % sym.latex(lensf))
         for freq in fcross/GHz:
-            ax0.plot([freq, freq], [-10, 1000], ls='dashed', color='black')
-        ax0.set_ylim(-0.1, np.max(asymG) + 1.)
-        ax0.set_xlim(fmin/GHz, fmax/GHz)
-        # ax0.set_yscale('log')
-        ax0.grid()
-        
-        # Create table
-        # col_labels = ['Parameter', 'Value']
-        # if np.abs(dm/pctocm) < 1:
-        #     dmlabel = "{:.2E}".format(Decimal(dm/pctocm))
-        # else:
-        #     dmlabel = str(dm/pctocm)
-        # tablevals = [[r'$d_{so} \: (kpc)$', np.around(dso/pctocm/kpc, 2)], [r'$d_{sl} \: (kpc)$', np.around(dsl/pctocm/kpc, 2)], [r'$a_x \: (AU)$', np.around(ax/autocm, 2)], [r'$a_y \: (AU)$', np.around(ay/autocm, 2)], [r'$DM_l \: (pc \, cm^{-3})$', dmlabel], [r"$\vec{u}'$", np.around(upvec, 2)]]
-        # ax1.axis('tight')
-        # ax1.axis('off')
-        # ax1.set_anchor('N')
-        # table = ax1.table(cellText = tablevals, colWidths = [0.25, 0.25], colLabels = col_labels, loc = 'center')
-        # table.auto_set_font_size(False)
-        # table.set_fontsize(12)
-        # table.scale(3., 3.)
-        
+            plt.plot([freq, freq], [-10, 1000], ls='dashed', color='black')
+        plt.ylim(-0.1, np.max(asymG) + 1.)
+        plt.xlim(fmin/GHz, fmax/GHz)
+        plt.grid()
         plt.show()
         
     return asymG

@@ -2,7 +2,7 @@ from fundfunctions import *
 from solvers import *
 from fslice import *
 from observables import *
-import sys
+# import sys
 
 path = '/home/gian/Documents/Research/NANOGrav/Lensing/Scripts/Simulation/dspectra/'
 
@@ -127,4 +127,4 @@ def dspectraPar(args):
     
     return
 
-dspectraPar(np.load(path + sys.argv[1] + '.npy'))
+# dspectraPar(np.load(path + sys.argv[1] + '.npy'))

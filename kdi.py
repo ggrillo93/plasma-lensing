@@ -1,10 +1,7 @@
 from fundfunctions import *
-import matplotlib.pyplot as plt
 from solvers import *
 from scipy.fftpack import fft2, ifft2, fftshift, fft, ifft
 from scipy.ndimage import map_coordinates
-from matplotlib import gridspec as gs
-from decimal import Decimal
 
 def gridToPixel(u, umax, gsize):
     return 0.5*gsize*(u/umax + 1.)
