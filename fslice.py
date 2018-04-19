@@ -24,7 +24,10 @@ def fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, npoints = 3000, comp = True
             if fmin < freq < fmax:
                 fcross.append(freq)
                 ucrossb.append([ux, uy])
-    fcross = np.sort(np.asarray(fcross))
+    fcross = np.asarray(fcross)
+    p = np.argsort(fcross)
+    fcross = fcross[p]
+    ucrossb = np.asarray(ucrossb)[p]
     print(ucrossb)
     ncross = len(fcross)
     print(fcross/GHz)
@@ -84,8 +87,37 @@ def fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, npoints = 3000, comp = True
                 ans = GOfield(roots[i][j], rF2, lc, ax, ay)
                 for k in range(3):
                     fields[j][k][i] = ans[k]
-        print(fields.shape)
+        # print(fields.shape)
         allfields.append(fields)
+    
+    # Calculate gain at caustics
+    causgains = np.zeros(ncross)
+    for i in range(ncross):
+        freq = fcross[i]
+        rF2 = rF2p/freq
+        lc = lcp/freq
+        causgains[i] = causAmp(ucrossb[i], rF2, lc, ax, ay)
+    
+    print(causgains)
+    
+    # Calculate first order gains
+    allgains = []
+    for l in range(nzones):
+        fvec = segs[l]
+        roots = allroots[l]
+        nroots = int(nreal[l])
+        print(nroots)
+        gains = np.zeros(npoints)
+        for i in range(npoints):
+            freq = fvec[i]
+            rF2 = rF2p/freq
+            lc = lcp/freq
+            tgain = 0
+            for j in range(nroots):
+                amp = GOAmp(roots[i][j], rF2, lc, ax, ay)
+                tgain = tgain + amp**2
+            gains[i] = tgain
+        allgains.append(gains)
     
     # Construct uniform asymptotics
     asymp = uniAsymp(allroots, allfields, nreal, ncomplex, npoints, nzones, sigs)
@@ -128,7 +160,7 @@ def fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, npoints = 3000, comp = True
         
         plt.show()
     
-    return np.array([finf/GHz, asymG, fcross])
+    return np.array([finf/GHz, asymG, fcross, np.asarray(allgains).flatten(), np.asarray(segs).flatten()])
     
 def fsliceGBulk(upvec, fcaus, fmin, fmax, leqinv, ax, ay, rx, ry, uvec, rF2p, lcp, coeff, cdist, npoints, comp, plot = False):
     
@@ -211,10 +243,10 @@ def fsliceGBulk(upvec, fcaus, fmin, fmax, leqinv, ax, ay, rx, ry, uvec, rF2p, lc
         
     return asymG
     
-def fsliceGfull(upvec, uxmax, uymax, fmin, fmax, dso, dsl, dm, ax, ay, m, n, N=500, npoints=3000, comp = True):
+def fsliceGfull(upvec, uxmax, uymax, fmin, fmax, dso, dsl, dm, ax, ay, m, n, N=200, npoints=3000, comp = True):
         
     freqcaus = causCurveFreq(uxmax, uymax, ax, ay, dso, dsl, dm, m, n, plot = False, N = N)
-    finf, asymG, fcross = fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, plot = False, npoints = npoints, comp = comp)
+    finf, asymG, fcross, fogain, fvec = fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, plot = False, npoints = npoints, comp = comp)
     
     fig = plt.figure(figsize=(15, 10))
     grid = gs.GridSpec(2, 2, width_ratios=[4, 1])
@@ -228,6 +260,7 @@ def fsliceGfull(upvec, uxmax, uymax, fmin, fmax, dso, dsl, dm, ax, ay, m, n, N=5
     ax0.set_title('Lens shape: ' + '$%s$' % sym.latex(lensf))
     for freq in fcross/GHz:
         ax0.plot([freq, freq], [-10, 1000], ls='dashed', color='black')
+    ax0.plot(fvec/GHz, fogain, color = 'red')
     ax0.set_ylim(-0.1, np.max(asymG) + 1.)
     ax0.set_xlim(fmin/GHz, fmax/GHz)
     ax0.grid()
@@ -240,7 +273,7 @@ def fsliceGfull(upvec, uxmax, uymax, fmin, fmax, dso, dsl, dm, ax, ay, m, n, N=5
     ax1.set_title("Caustic curves")
     ax1.set_aspect('auto', anchor='C')
     ax1.plot([upvec[0], upvec[0]], [-1, 10], color = 'black', lw = 2)
-    ax1.set_ylim(fmin/GHz, 4.)
+    ax1.set_ylim(fmin/GHz, fmax/GHz)
 
     # Create table
     col_labels = ['Parameter', 'Value']

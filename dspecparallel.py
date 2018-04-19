@@ -24,13 +24,13 @@ def caustics(upx, A, B, C, D, E, ax, ay, m, n, fcoeff):
 
 path = '/home/gian/Documents/Research/NANOGrav/Lensing/Scripts/Simulation/dspectra/'
 
-dso, dsl, dm, ax, ay = 1.1*kpc*pctocm, 0.55*kpc*pctocm, -1e-4*pctocm, 0.1*autocm, 0.2*autocm
+dso, dsl, dm, ax, ay = 1.1*kpc*pctocm, 0.55*kpc*pctocm, -1e-4*pctocm, 0.15*autocm, 0.15*autocm
 
-m, n = 1., 0.
+m, n = 0., 1.
 uxmax, uymax = 5., 5.
 nspectra = len(sorted(glob.glob(path + '*.dat'))) - 3.
-fmin, fmax = 0.1*GHz, 4.*GHz
-nupts = 50
+fmin, fmax = 0.3*GHz, 1.5*GHz
+nupts = 1000
 ncpus = multiprocessing.cpu_count() - 1
 
 ymin = -m*uxmax + n
@@ -55,7 +55,7 @@ alpp = alpha(dso, dsl, 1., dm)
 coeff = alpp*np.array([1./ax**2, 1./ay**2])
 rF2p = rFsqr(dso, dsl, 1.)
 lcp = lensc(dm, 1.)
-nfpts = 2000
+nfpts = 1000
 cdist = 1e4
 comp = False
 

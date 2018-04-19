@@ -92,8 +92,8 @@ def causCurveFreq(uxmax, uymax, ax, ay, dso, dsl, dm, m, n, plot = True, N = 200
     dlo = dso - dsl
     coeff = dsl*dlo*re*dm/(2*pi*dso)
     
-    rx = np.linspace(2*xmin, 2*xmax, 500)
-    ry = np.linspace(2*ymin, 2*ymax, 500)
+    rx = np.linspace(xmin - 5., xmax + 5., 500)
+    ry = np.linspace(ymin - 5., ymax + 5., 500)
     uvec = np.meshgrid(rx, ry)
     A, B, C, D, E = causticFreqHelp(uvec, ax, ay, m, n)
     upxvec = np.linspace(xmin, xmax, N)
@@ -405,7 +405,7 @@ def rootFinderFreq(segs, nreal, ncomplex, npoints, ucross, upvec, coeff):
             croot = op.root(compLensEq, [ucross[0], guess, ucross[1], guess], args=(np.array([upx + 0j, upy + 0j]), leqcoeff))
             # print(croot)
             # check that the root finder finds the correct complex ray
-            if croot.success and np.abs(croot.x[1]) > 1e-6*np.abs(croot.x[0]) and np.abs(croot.x[0] - ucross[0]) < 0.1 and np.abs(croot.x[1]/croot.x[0]) < 1.:
+            if croot.success and np.abs(croot.x[1]) > 1e-6*np.abs(croot.x[0]) and np.abs(croot.x[0] - ucross[0]) < 0.1 and np.abs(croot.x[1]/croot.x[0]) < 0.1:
                 print([ucross, croot.x])
                 croot1 = [croot.x[0] + 1j*croot.x[1], croot.x[2] + 1j*croot.x[3]]
                 return croot1
@@ -462,31 +462,17 @@ def rootFinderFreq(segs, nreal, ncomplex, npoints, ucross, upvec, coeff):
                     print(roots[j-1].real)
                     roots[j][k] = roots[j-1][k]
         if ncomplex[i] > 0:
-            # cond = (i <= len(segs)/2)
-            # if cond:
-            #     p = i
-            #     if ncomplex[0] != 0:
-            #         seg = np.flipud(seg)
-            #         roots = np.flipud(roots)
-            # else:
-            #     p = i - 1
-            scomp = findFirstComp(ucross[i-1], seg[0])
+            p = i - 1
+            if i < len(segs)/2 and ncomplex[0] != 0:  # need to flip
+                seg = np.flipud(seg)
+                roots = np.flipud(roots)
+                p = i
+            scomp = findFirstComp(ucross[p], seg[0])
             roots[0][int(nreal[i])] = scomp
             roots = findAllComp(roots, seg, int(nreal[i]))
-            # if cond and ncomplex[0] != 0:
-            #     seg = np.flipud(seg)  # flip back
-            #     roots = np.flipud(roots)
-            if ncomplex[i] == 2:
-                if i >= len(segs)/2:
-                    seg = np.flipud(seg)
-                    roots = np.flipud(roots)
-                    scomp = findFirstComp(ucross[p + 1], seg[0])
-                else:
-                    scomp = findFirstComp(ucross[p - 1], seg[0])
-                roots[0][int(nreal[i]) + 1] = scomp
-                roots = findAllComp(roots, seg, int(nreal[i]) + 1)
-                if i >= len(segs)/2:
-                    roots = np.flipud(roots)
+            if i < len(segs)/2 and ncomplex[0] != 0:
+                seg = np.flipud(seg)  # flip back
+                roots = np.flipud(roots)
         allroots.append(roots)
     return allroots
     

@@ -20,9 +20,11 @@ A, B = 1e-2, 5
 lensf = sym.exp(-u_x**2-u_y**2) # sym.sinc(u_x+u_y)**2 # 0.5/((u_x+u_y)**2 + 0.25)*(1./pi) #1./(sym.exp(u_x + u_y) + sym.exp(-u_x-u_y)))**2. #*(1. - A*(sym.sin(B*u_x)+sym.sin(B*u_y)))
 lensg = np.array([sym.diff(lensf, u_x), sym.diff(lensf, u_y)])
 lensh = np.array([sym.diff(lensf, u_x, u_x), sym.diff(lensf, u_y, u_y), sym.diff(lensf, u_x, u_y)])
+lensgh = np.array([sym.diff(lensf, u_x, u_x, u_x), sym.diff(lensf, u_x, u_x, u_y), sym.diff(lensf, u_x, u_y, u_y), sym.diff(lensf, u_y, u_y, u_y)])
 lensfun = sym.lambdify([u_x, u_y], lensf, "numpy")
 lensg = sym.lambdify([u_x, u_y], lensg, "numpy")
 lensh = sym.lambdify([u_x, u_y], lensh, "numpy")
+lensgh = sym.lambdify([u_x, u_y], lensgh, "numpy")
 
 @jit(nopython=True)
 def alpha(dso, dsl, f, dm):

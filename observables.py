@@ -24,6 +24,33 @@ def GOfield(uvec, rF2, lc, ax, ay):
     phase = phi(uvec, rF2, lc, ax, ay)
     pshift = pi*(delta + 1)*sigma*0.25
     return np.array([amp, phase, pshift])
+
+# Amplitudes
+def GOAmp(uvec, rF2, lc, ax, ay):
+    """ Returns the geometrical optics amplitude. """
+    ux, uy = uvec
+    alp = rF2*lc
+    psi20, psi02, psi11 = lensh(ux, uy)
+    phi20 = ax**2/rF2 + lc*psi20
+    phi02 = ay**2/rF2 + lc*psi02
+    phi11 = lc*psi11
+    H = phi20*phi02 - phi11**2
+    ans = (ax*ay/rF2)*np.abs(H)**-0.5
+    return ans
+    
+def causAmp(uvec, rF2, lc, ax, ay):
+    """ Returns an approximation to the amplitude at the caustic, using the formula from Cooke 1982. """
+    ux, uy = uvec
+    psi20, psi02, psi11 = lensh(ux, uy)
+    phi20 = ax**2/rF2 + lc*psi20
+    phi02 = ay**2/rF2 + lc*psi02
+    phi11 = lc*psi11
+    phi30, phi21, phi12, phi03 = lc*np.asarray(lensgh(ux, uy))
+    B = phi20**3*phi03 - 3*phi20**2*phi11*phi12 + 3*phi20*phi11**2*phi21 - phi11**3*phi30
+    amp = ax*ay/(2*pi*rF2) * 2.**(5./6.) * pi**(1./2.) * gfunc(1./3.) * np.abs(phi20)**0.5/(3.**(1./6.) * np.abs(B)**(1./3.))
+   #  G = 2./(pi*np.abs(phi20))*(ax*ay*gfunc(1./3.)*np.cos(pi/6.)/(rF2*(9*np.abs(phi03))**(1./3.)))**2.
+    # G = (ax*ay/(2*pi*rF2))**2/3 * (gfunc(0.5)*gfunc(1./3.)/(np.abs(phi20)**0.5*np.abs(phi03)**(1./3.)))**2
+    return amp**2
     
 # TOA perturbation
 def deltat(uvec, tg0, tdm0, alp, ax, ay):
@@ -112,10 +139,9 @@ def uniAsymp(allroots, allfields, nreal, ncomplex, npoints, nzones, sigs):
         return a1
     
     asymp = np.zeros([nzones, npoints])
+    
     for i in range(nzones):
         p = i - 1 # caustic index
-        if i < nzones/2:
-            p = i
         roots, fields = allroots[i], allfields[i]
         nroots = (ncomplex + nreal)[i]
         realn = int(nreal[i])
@@ -133,7 +159,7 @@ def uniAsymp(allroots, allfields, nreal, ncomplex, npoints, nzones, sigs):
                 if np.all(mroot1 == mroot2): # same root merges at both ends
                     A1, phi1 = fields[mroot1[0]][:2]
                     A2, phi2 = fields[mroot1[1]][:2]
-                    amerge = bright(A1, A2, phi1, phi2, sigs[p-1])
+                    amerge = bright(A1, A2, phi1, phi2, sigs[p])
                     anonm = np.zeros(npoints, dtype = complex)
                     for index in nmroots1:
                         anonm = anonm + constructField(*fields[index]) # sum of fields not involved in merging
@@ -143,12 +169,8 @@ def uniAsymp(allroots, allfields, nreal, ncomplex, npoints, nzones, sigs):
                     A32, A42 = np.split(fields[mroot2[0]][0], 2)[1], np.split(fields[mroot2[1]][0], 2)[1]
                     phi11, phi21 = np.split(fields[mroot1[0]][1], 2)[0], np.split(fields[mroot1[1]][1], 2)[0]
                     phi32, phi42 = np.split(fields[mroot2[0]][1], 2)[1], np.split(fields[mroot2[1]][1], 2)[1]
-                    if i < nzones/2.:
-                        amerge1 = bright(A11, A21, phi11, phi21, sigs[p])
-                        amerge2 = bright(A32, A42, phi32, phi42, sigs[p])
-                    else:
-                        amerge1 = bright(A11, A21, phi11, phi21, sigs[p+1])
-                        amerge2 = bright(A32, A42, phi32, phi42, sigs[p+1])
+                    amerge1 = bright(A11, A21, phi11, phi21, sigs[p])
+                    amerge2 = bright(A32, A42, phi32, phi42, sigs[p + 1])
                     nmfields1 = [constructField(*np.split(fields[nmroot], 2, axis = 1)[0]) for nmroot in nmroots1]
                     nmfields2 = [constructField(*np.split(fields[nmroot], 2, axis = 1)[1]) for nmroot in nmroots2]
                     anonm1 = np.zeros(npoints/2, dtype = complex)
@@ -162,10 +184,7 @@ def uniAsymp(allroots, allfields, nreal, ncomplex, npoints, nzones, sigs):
                 # print('Root merging at first end')
                 A1, phi1 = fields[mroot1[0]][:2]
                 A2, phi2 = fields[mroot1[1]][:2]
-                if i <= nzones/2.:
-                    amerge = bright(A1, A2, phi1, phi2, sigs[p-1])
-                else:
-                    amerge = bright(A1, A2, phi1, phi2, sigs[p])
+                amerge = bright(A1, A2, phi1, phi2, sigs[p])
                 anonm = np.zeros(npoints, dtype = complex)
                 for index in nmroots1:
                     anonm = anonm + constructField(*fields[index]) # sum of fields not involved in merging
@@ -174,59 +193,77 @@ def uniAsymp(allroots, allfields, nreal, ncomplex, npoints, nzones, sigs):
                 # print('Root merging at second end')
                 A1, phi1 = fields[mroot2[0]][:2]
                 A2, phi2 = fields[mroot2[1]][:2]
-                if i <= nzones/2:
-                    amerge = bright(A1, A2, phi1, phi2, sigs[p])
-                else:
-                    amerge = bright(A1, A2, phi1, phi2, sigs[p+1])
+                amerge = bright(A1, A2, phi1, phi2, sigs[p+1])
                 anonm = np.zeros(npoints, dtype = complex)
                 for index in nmroots2:
                     anonm = anonm + constructField(*fields[index]) # sum of fields not involved in merging
                 areal = amerge + anonm
-        if ncomplex[i] != 0: # deal with merging complex roots. its a mess, there should a better way of doing it
+        if ncomplex[i] != 0: # deal with merging complex roots
             A, phi = fields[realn][:2]
             cond = np.abs(roots[0][realn][0].imag/roots[0][realn][0].real) < np.abs(roots[-1][realn][0].imag/roots[-1][realn][0].real)
             if cond: # complex root merges at first end
-                if i < nzones/2.:
-                    acomp = dark(A, phi, sigs[p - 1])
-                else:
-                    acomp = dark(A, phi, sigs[p])
+                # print('Complex root merging at first end')
+                acomp = dark(A, phi, sigs[p])
             else: # complex root merges at second end
-                if i < nzones/2. or i == nzones - 1:
-                    acomp = dark(A, phi, sigs[p])
-                else:
-                    acomp = dark(A, phi, sigs[p + 1])
+                acomp = dark(A, phi, sigs[p + 1])
             if ncomplex[i] == 2 and np.around(fields[realn][0][0], 3) != np.around(fields[realn + 1][0][0], 3):
                 A2, phi2 = fields[realn + 1][:2]
                 if cond:
-                    if i < nzones/2.:
-                        acomp = acomp + dark(A2, phi2, sigs[p])
-                    else:
-                        acomp = acomp + dark(A2, phi2, sigs[p + 1])
+                    acomp = acomp + dark(A2, phi2, sigs[p + 1])
                 else:
-                    if i < nzones/2.:
-                        acomp = acomp + dark(A2, phi2, sigs[p - 1])
-                    else:
-                        acomp = acomp + dark(A2, phi2, sigs[p])
+                    acomp = acomp + dark(A2, phi2, sigs[p])
         else:
             acomp = np.zeros(npoints)
         asymp[i] = np.abs(areal + acomp)**2
     return asymp.flatten()
+    
+def uniAsympTOA(roots, fields, realn, npoints, sig):
+    """ Constructs the uniform asympotics for a segmented array of roots and their respective fields. """
+    
+    def bright(A1, A2, phi1, phi2, sig):
+        if phi1[0] > phi2[0]:
+            pdiff = phi1 - phi2
+            g1 = A2 - A1
+        else:
+            pdiff = phi2 - phi1
+            g1 = A1 - A2
+        chi = 0.5*(phi1 + phi2)
+        xi = -(0.75*pdiff)**(2./3.)
+        air = airy(xi)
+        a1 = pi**0.5 *((A1 + A2)*(-xi)**0.25*air[0] - 1j*g1*(-xi)**-0.25*air[1]) * np.exp(1j*(chi + sig*0.25*pi))
+        return a1
+    
+    p = i - 1 # caustic index
+    merge = [findClosest(roots[0][:realn].real), findClosest(roots[-1][:realn].real)] # find closest real roots at each end
+    mroot1, mroot2 = merge[0][0], merge[1][0] # set indices of merging roots
+    nmroots1 = list(set(range(realn)) - set(mroot1)) # indices of non merging roots at one end
+    nmroots2 = list(set(range(realn)) - set(mroot2)) # indices of non merging roots at other end
+    if merge[0][1] < 0.4 and merge[1][1] < 0.4: # case 1: real root merging at both ends
+        if np.all(mroot1 == mroot2): # same root merges at both ends
+            A1, phi1 = fields[mroot1[0]][:2]
+            A2, phi2 = fields[mroot1[1]][:2]
+            amerge = bright(A1, A2, phi1, phi2, sigs[p])
+        else: # different roots merge at each end
+            A11, A21 = np.split(fields[mroot1[0]][0], 2)[0], np.split(fields[mroot1[1]][0], 2)[0]
+            A32, A42 = np.split(fields[mroot2[0]][0], 2)[1], np.split(fields[mroot2[1]][0], 2)[1]
+            phi11, phi21 = np.split(fields[mroot1[0]][1], 2)[0], np.split(fields[mroot1[1]][1], 2)[0]
+            phi32, phi42 = np.split(fields[mroot2[0]][1], 2)[1], np.split(fields[mroot2[1]][1], 2)[1]
+            amerge1 = bright(A11, A21, phi11, phi21, sigs[p])
+            amerge2 = bright(A32, A42, phi32, phi42, sigs[p + 1])
+            amerge = np.concatenate((amerge1, amerge2))
+    elif merge[0][1] < 0.4 and merge[1][1] > 0.4: # case 2: real root merging at first end only
+        A1, phi1 = fields[mroot1[0]][:2]
+        A2, phi2 = fields[mroot1[1]][:2]
+        amerge = bright(A1, A2, phi1, phi2, sigs[p])
+    elif merge[0][1] > 0.4 and merge[1][1] < 0.4: # case 3: real root merging at second end only
+        A1, phi1 = fields[mroot2[0]][:2]
+        A2, phi2 = fields[mroot2[1]][:2]
+        amerge = bright(A1, A2, phi1, phi2, sigs[p+1])
+    return amerge
 
 # Momentarily useless stuff
+
 # # @jit(nopython=True)
-# def GOAmplitude(uvec, rF2, lc, ax, ay):
-#     """ Returns the geometrical optics amplitude. """
-#     ux, uy = uvec
-#     alp = rF2*lc
-#     phi20 = ax**2/rF2 + lc*gauss20(ux, uy)
-#     phi02 = ay**2/rF2 + lc*gauss02(ux, uy)
-#     phi11 = lc*gauss11(ux, uy)
-#     H = phi20*phi02 - phi11**2
-#     ans = (ax*ay/rF2)*np.abs(H)**-0.5
-#     return ans
-
-
-
 # def GOfieldB(uvec, rF2, lc, ax, ay):
 #     """ Returns the geometrical optics field, including the second order term. """
 #     # Stamnes 1986, Dingle 1973
@@ -248,21 +285,6 @@ def uniAsymp(allroots, allfields, nreal, ncomplex, npoints, nzones, sigs):
 #     sigma = np.sign(phi02)
 #     delta = np.sign(H)
 #     return ax*ay/(rF2*np.abs(H)**0.5) * exp(1j*(phi(uvec, rF2, lc, ax, ay) + pi*(delta + 1)*sigma*0.25)) * (1. + 1j*q2)
-
-# @jit(nopython=True)
-# def physField(uvec, rF2, lc, ax, ay):
-#     """ Returns an approximation of the field at the caustic, using the formula from Cooke 1982. """
-#     ux, uy = uvec
-#     alp = rF2*lc
-#     phi20, phi02 = ax**2/rF2 + lc*gauss20(ux, uy), ay**2/rF2 + lc*gauss02(ux, uy)
-#     phi11 = lc*gauss11(ux, uy)
-#     phi30 = lc*gauss30(ux, uy)
-#     phi21 = lc*gauss21(ux, uy)
-#     phi12 = lc*gauss12(ux, uy)
-#     phi03 = lc*gauss03(ux, uy)
-#     B = phi20**3*phi03 - 3*phi20**2*phi11*phi12 + 3*phi20*phi11**2*phi21 - phi11**3*phi30
-#     U = ax*ay/(2*pi*rF2) * exp(1j*(phi(uvec, rF2, lc, ax, ay) + 0.25*pi*np.sign(phi20))) * 2.**(5./6.) * pi**(1./3.) * gfunc(1./3.) * np.abs(phi20)**0.5/(3.**(1./6.) * np.abs(B)**(1./3.))
-#     return U
 
 # # DM perturbation
 # def deltaDMA(uvec, tg0, tdm0, alp, ax, ay, f, sgnG):
