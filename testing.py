@@ -1,19 +1,25 @@
-from solvers import *
-from observables import *
 from upslice import *
 from fslice import *
 from kdi import *
 from dspectra import *
+import pypulse as pp
+from toapert import *
 
-dso, dsl, f, dm, ax, ay = 1.1*kpc*pctocm, 0.55*kpc*pctocm, 0.8*GHz, -5e-4*pctocm, 0.25*autocm, 0.4*autocm
-m, n = 1., 0.
-alp = alpha(dso, dsl, f, dm)
+dso, dsl, f, dm, ax, ay = 1.1*kpc*pctocm, 0.55*kpc*pctocm, 0.8*GHz, 1e-4*pctocm, 0.15*autocm, 0.15*autocm
+
+# Test toapert.py
+path = '/home/gian/Documents/Research/NANOGrav/Lensing/Scripts/Simulation/Templates/J1713+0747.Rcvr_800.GUPPI.9y.x.sum.sm'
+template = pp.Archive(path).getData()
+fslicepert([2., 2.], 0.1*GHz, 2.*GHz, dso, dsl, dm, ax, ay, template, 30., npoints = 3000, plot = True)
+
+# m, n = 1., 0.
+# alp = alpha(dso, dsl, f, dm)
 # causPlotter(5., 5., alp, ax, ay)
 # dspectra(0.1*GHz, 4.*GHz, 5., 5., dso, dsl, dm, ax, ay, 1., 3.)
 # coeff = alp*np.array([1./ax**2, 1./ay**2])
 # polishedRoots(lensEq, 5., 5., args=([2., 2.], coeff), plot = True)
 # fsliceG([0.15, 0.15], 0.3*GHz, 3.*GHz, dso, dsl, dm, ax, ay, npoints=1000, plot=True)
-fsliceGfull([0.2, 0.2], 5., 5., 0.1*GHz, 2.*GHz, dso, dsl, dm, ax, ay, 1., 0., comp=True)
+# fsliceGfull([0.2, 0.2], 5., 5., 0.1*GHz, 2.*GHz, dso, dsl, dm, ax, ay, 1., 0., comp=True)
 # planeSliceTOA(5., 5., dso, dsl, f, dm, 0.5, 0., ax, ay, 1000)
 # upx = -2.
 # roots = findRoots(causEqFreq, 5., 5., args = (upx, ax, ay, 0.5, 0.5), plot = True, N = 1000)

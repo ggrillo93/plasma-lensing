@@ -57,7 +57,7 @@ def deltat(uvec, tg0, tdm0, alp, ax, ay):
     """ Returns TOA perturbation in us at a stationary point. Coefficients: tg0 = dso/(2*c*dsl*dlo), tdm0 = c*re*dm/(2*pi*f**2). """
     ux, uy = uvec
     grad = lensg(ux, uy)
-    return 1e6*(tg0*alp**2*((grad[0]/ax)**2 + (grad[1]/ay)**2) + tdm0*lensfun(*uvec))
+    return 1e6*(tg0*alp**2*((grad[0]/ax)**2 + (grad[1]/ay)**2) + tdm0*lensfun(ux, uy))
     
 # Field construction and helper functions
 
@@ -233,8 +233,7 @@ def uniAsympTOA(roots, fields, realn, npoints, sig):
         a1 = pi**0.5 *((A1 + A2)*(-xi)**0.25*air[0] - 1j*g1*(-xi)**-0.25*air[1]) * np.exp(1j*(chi + sig*0.25*pi))
         return a1
     
-    p = i - 1 # caustic index
-    merge = [findClosest(roots[0][:realn].real), findClosest(roots[-1][:realn].real)] # find closest real roots at each end
+    merge = [findClosest(roots[0].real), findClosest(roots[-1].real)] # find closest real roots at each end
     mroot1, mroot2 = merge[0][0], merge[1][0] # set indices of merging roots
     nmroots1 = list(set(range(realn)) - set(mroot1)) # indices of non merging roots at one end
     nmroots2 = list(set(range(realn)) - set(mroot2)) # indices of non merging roots at other end
@@ -242,24 +241,24 @@ def uniAsympTOA(roots, fields, realn, npoints, sig):
         if np.all(mroot1 == mroot2): # same root merges at both ends
             A1, phi1 = fields[mroot1[0]][:2]
             A2, phi2 = fields[mroot1[1]][:2]
-            amerge = bright(A1, A2, phi1, phi2, sigs[p])
+            amerge = bright(A1, A2, phi1, phi2, sig)
         else: # different roots merge at each end
             A11, A21 = np.split(fields[mroot1[0]][0], 2)[0], np.split(fields[mroot1[1]][0], 2)[0]
             A32, A42 = np.split(fields[mroot2[0]][0], 2)[1], np.split(fields[mroot2[1]][0], 2)[1]
             phi11, phi21 = np.split(fields[mroot1[0]][1], 2)[0], np.split(fields[mroot1[1]][1], 2)[0]
             phi32, phi42 = np.split(fields[mroot2[0]][1], 2)[1], np.split(fields[mroot2[1]][1], 2)[1]
-            amerge1 = bright(A11, A21, phi11, phi21, sigs[p])
-            amerge2 = bright(A32, A42, phi32, phi42, sigs[p + 1])
+            amerge1 = bright(A11, A21, phi11, phi21, sig)
+            amerge2 = bright(A32, A42, phi32, phi42, sig)
             amerge = np.concatenate((amerge1, amerge2))
     elif merge[0][1] < 0.4 and merge[1][1] > 0.4: # case 2: real root merging at first end only
         A1, phi1 = fields[mroot1[0]][:2]
         A2, phi2 = fields[mroot1[1]][:2]
-        amerge = bright(A1, A2, phi1, phi2, sigs[p])
+        amerge = bright(A1, A2, phi1, phi2, sig)
     elif merge[0][1] > 0.4 and merge[1][1] < 0.4: # case 3: real root merging at second end only
         A1, phi1 = fields[mroot2[0]][:2]
         A2, phi2 = fields[mroot2[1]][:2]
-        amerge = bright(A1, A2, phi1, phi2, sigs[p+1])
-    return amerge
+        amerge = bright(A1, A2, phi1, phi2, sig)
+    return np.array([amerge, mroot1, mroot2, nmroots1, nmroots2])
 
 # Momentarily useless stuff
 
