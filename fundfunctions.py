@@ -1,7 +1,13 @@
-from __future__ import division
 from numba import jit
 import numpy as np
 import sympy as sym
+from scipy.special import airy
+from scipy.spatial.distance import *
+from matplotlib import gridspec as gs
+from matplotlib import pyplot as plt
+from decimal import Decimal
+from scipy.interpolate import *
+import pypulse as pp
 
 c = 2.998e10
 pctocm = 3.0856e18
@@ -11,13 +17,16 @@ kpc = 1e3
 autocm = 1.4960e13
 pi = np.pi
 
-ux, uy = sym.symbols('ux uy')
-lensfun = sym.exp(-ux**2 - uy**2)# *(1. - 5e-1*sym.sin(50*(ux + uy)))
-lensg = np.array([sym.diff(lensfun, ux), sym.diff(lensfun, uy)])
-lensh = np.array([sym.diff(lensfun, ux, ux), sym.diff(lensfun, uy, uy), sym.diff(lensfun, ux, uy)])
-lensfun = sym.lambdify([ux, uy], lensfun, "numpy")
-lensg = sym.lambdify([ux, uy], lensg, "numpy")
-lensh = sym.lambdify([ux, uy], lensh, "numpy")
+u_x, u_y = sym.symbols('u_x u_y')
+A, B = 1e-2, 5
+lensf = sym.exp(-u_x**2-u_y**2) # sym.sinc(u_x+u_y)**2 # 0.5/((u_x+u_y)**2 + 0.25)*(1./pi) #1./(sym.exp(u_x + u_y) + sym.exp(-u_x-u_y)))**2. #*(1. - A*(sym.sin(B*u_x)+sym.sin(B*u_y)))
+lensg = np.array([sym.diff(lensf, u_x), sym.diff(lensf, u_y)])
+lensh = np.array([sym.diff(lensf, u_x, u_x), sym.diff(lensf, u_y, u_y), sym.diff(lensf, u_x, u_y)])
+lensgh = np.array([sym.diff(lensf, u_x, u_x, u_x), sym.diff(lensf, u_x, u_x, u_y), sym.diff(lensf, u_x, u_y, u_y), sym.diff(lensf, u_y, u_y, u_y)])
+lensfun = sym.lambdify([u_x, u_y], lensf, "numpy")
+lensg = sym.lambdify([u_x, u_y], lensg, "numpy")
+lensh = sym.lambdify([u_x, u_y], lensh, "numpy")
+lensgh = sym.lambdify([u_x, u_y], lensgh, "numpy")
 
 @jit(nopython=True)
 def alpha(dso, dsl, f, dm):
