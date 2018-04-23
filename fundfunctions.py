@@ -6,6 +6,8 @@ from scipy.spatial.distance import *
 from matplotlib import gridspec as gs
 from matplotlib import pyplot as plt
 from decimal import Decimal
+from scipy.interpolate import *
+import pypulse as pp
 
 c = 2.998e10
 pctocm = 3.0856e18

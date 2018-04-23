@@ -2,18 +2,17 @@ from upslice import *
 from fslice import *
 from kdi import *
 from dspectra import *
-import pypulse as pp
-from toapert import *
+from toapertopt import *
 
-dso, dsl, f, dm, ax, ay = 1.1*kpc*pctocm, 0.55*kpc*pctocm, 0.8*GHz, 1e-4*pctocm, 0.15*autocm, 0.15*autocm
+dso, dsl, f, dm, ax, ay = 1.1*kpc*pctocm, 0.55*kpc*pctocm, 0.8*GHz, -5e-4*pctocm, 0.35*autocm, 0.45*autocm
 
 # Test toapert.py
 path = '/home/gian/Documents/Research/NANOGrav/Lensing/Scripts/Simulation/Templates/J1713+0747.Rcvr_800.GUPPI.9y.x.sum.sm'
 template = pp.Archive(path).getData()
-fslicepert([2., 2.], 0.1*GHz, 2.*GHz, dso, dsl, dm, ax, ay, template, 30., npoints = 3000, plot = True)
+fslicepert([0.4, 0.4], 0.1*GHz, 1.*GHz, dso, dsl, dm, ax, ay, template, 4.5e3, npoints = 3000, plot = True)
 
 # m, n = 1., 0.
-# alp = alpha(dso, dsl, f, dm)
+#alp = alpha(dso, dsl, f, dm)
 # causPlotter(5., 5., alp, ax, ay)
 # dspectra(0.1*GHz, 4.*GHz, 5., 5., dso, dsl, dm, ax, ay, 1., 3.)
 # coeff = alp*np.array([1./ax**2, 1./ay**2])

@@ -1,7 +1,6 @@
 from fundfunctions import *
 from observables import *
 from solvers import *
-from scipy.interpolate import *
 from kdi import *
 
 def planeSliceTOA(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints):

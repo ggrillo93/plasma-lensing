@@ -217,8 +217,8 @@ def uniAsymp(allroots, allfields, nreal, ncomplex, npoints, nzones, sigs):
         asymp[i] = np.abs(areal + acomp)**2
     return asymp.flatten()
     
-def uniAsympTOA(roots, fields, realn, npoints, sig):
-    """ Constructs the uniform asympotics for a segmented array of roots and their respective fields. """
+def uniAsympTOA(roots, fields, toas, realn, npoints, sig):
+    """ Constructs the uniform asympotics. """
     
     def bright(A1, A2, phi1, phi2, sig):
         if phi1[0] > phi2[0]:
@@ -237,28 +237,99 @@ def uniAsympTOA(roots, fields, realn, npoints, sig):
     mroot1, mroot2 = merge[0][0], merge[1][0] # set indices of merging roots
     nmroots1 = list(set(range(realn)) - set(mroot1)) # indices of non merging roots at one end
     nmroots2 = list(set(range(realn)) - set(mroot2)) # indices of non merging roots at other end
-    if merge[0][1] < 0.4 and merge[1][1] < 0.4: # case 1: real root merging at both ends
-        if np.all(mroot1 == mroot2): # same root merges at both ends
-            A1, phi1 = fields[mroot1[0]][:2]
-            A2, phi2 = fields[mroot1[1]][:2]
-            amerge = bright(A1, A2, phi1, phi2, sig)
-        else: # different roots merge at each end
-            A11, A21 = np.split(fields[mroot1[0]][0], 2)[0], np.split(fields[mroot1[1]][0], 2)[0]
-            A32, A42 = np.split(fields[mroot2[0]][0], 2)[1], np.split(fields[mroot2[1]][0], 2)[1]
-            phi11, phi21 = np.split(fields[mroot1[0]][1], 2)[0], np.split(fields[mroot1[1]][1], 2)[0]
-            phi32, phi42 = np.split(fields[mroot2[0]][1], 2)[1], np.split(fields[mroot2[1]][1], 2)[1]
-            amerge1 = bright(A11, A21, phi11, phi21, sig)
-            amerge2 = bright(A32, A42, phi32, phi42, sig)
-            amerge = np.concatenate((amerge1, amerge2))
-    elif merge[0][1] < 0.4 and merge[1][1] > 0.4: # case 2: real root merging at first end only
+    
+    if merge[0][1] < 0.3 and merge[1][1] < 0.3: # case 1: real root merging at both ends. need to segment.
+            
         A1, phi1 = fields[mroot1[0]][:2]
         A2, phi2 = fields[mroot1[1]][:2]
-        amerge = bright(A1, A2, phi1, phi2, sig)
-    elif merge[0][1] > 0.4 and merge[1][1] < 0.4: # case 3: real root merging at second end only
+        A3, phi3 = fields[mroot2[0]][:2]
+        A4, phi4 = fields[mroot2[1]][:2]
+        
+        dphi1 = np.abs(phi1 - phi2)
+        dphi2 = np.abs(phi3 - phi4)
+        h1 = np.argwhere(dphi1 < pi).flatten()[-1]
+        h2 = npoints - np.argwhere(dphi2 < pi).flatten()[0]
+        
+        bfields1 = np.zeros([realn - 1, h1], dtype = complex)
+        btoas1 = np.zeros([realn - 1, h1])
+        bfields1[0] = bright(A1[:h1], A2[:h1], phi1[:h1], phi2[:h1], sig[0])
+        btoas1[0] = np.mean([toas[mroot1[0]][:h1], toas[mroot1[1]][:h1]], axis = 0)
+        
+        bfields2 = np.zeros([realn - 1, h2], dtype = complex)
+        btoas2 = np.zeros([realn - 1, h2])
+        bfields2[0] = bright(A3[-h2:], A4[-h2:], phi3[-h2:], phi4[-h2:], sig[1])
+        btoas2[0] = np.mean([toas[mroot2[0]][-h2:], toas[mroot2[1]][-h2:]], axis = 0)
+        
+        for i in range(len(nmroots1)):
+            nmroot1 = nmroots1[i]
+            nmroot2 = nmroots2[i]
+            bfields1[i + 1] = constructField(*fields[nmroot1][:, :h1])
+            bfields2[i + 1] = constructField(*fields[nmroot2][:, -h2:])
+            btoas1[i + 1] = toas[nmroot1][:h1]
+            btoas2[i + 1] = toas[nmroot2][-h2:]
+        
+        infields = np.zeros([realn, npoints - h1 - h2], dtype = complex)
+        intoas = np.zeros([realn, npoints - h1 - h2])
+        
+        for i in range(realn):
+            infields[i] = constructField(*fields[i][:, h1:-h2])
+            intoas[i] = toas[i][h1:-h2]
+        
+        return np.array([[bfields1, infields, bfields2], [btoas1, intoas, btoas2]])
+            
+    elif merge[0][1] < 0.3 and merge[1][1] > 0.3: # case 2: real root merging at first end only
+        
+        A1, phi1 = fields[mroot1[0]][:2]
+        A2, phi2 = fields[mroot1[1]][:2]
+        
+        dphi = np.abs(phi1 - phi2)
+        h = np.argwhere(dphi < pi).flatten()[-1]
+        
+        bfields = np.zeros([realn - 1, h]) # fields close to caustic
+        btoas = np.zeros([realn - 1, h]) # TOAs close to caustic
+        bfields[0] = bright(A1[:h], A2[:h], phi1[:h], phi2[:h], sig[0]) # combine merging images into one close to caustic
+        btoas[0] = np.mean([toas[mroot1[0]][:h], toas[mroot1[1]][:h]], axis = 0)
+        for i in range(len(nmroots1)):
+            nmroot = nmroots1[i]
+            bfields[i + 1] = constructField(*fields[nmroot][:, :h])
+            btoas[i + 1] = toas[nmroot][:h]
+        
+        infields = np.zeros([realn, npoints - h])
+        intoas = np.zeros([realn, npoints - h])
+        for i in range(realn):
+            infields[i] = constructField(*fields[i][:, h:])
+            intoas[i] = toas[i][h:]
+        
+        return np.array([[bfields, infields], [btoas, intoas]])
+        
+    elif merge[0][1] > 0.3 and merge[1][1] < 0.3: # case 3: real root merging at second end only
+        
         A1, phi1 = fields[mroot2[0]][:2]
         A2, phi2 = fields[mroot2[1]][:2]
-        amerge = bright(A1, A2, phi1, phi2, sig)
-    return np.array([amerge, mroot1, mroot2, nmroots1, nmroots2])
+        
+        dphi = np.abs(phi1 - phi2)
+        # print(dphi)
+        h = npoints - np.argwhere(dphi < pi).flatten()[0]
+        print(h)
+        
+        bfields = np.zeros([realn - 1, h], dtype = complex)
+        btoas = np.zeros([realn - 1, h])
+        bfields[0] = bright(A1[-h:], A2[-h:], phi1[-h:], phi2[-h:], sig[1])
+        # print([toas[mroot2[0]][-h:], toas[mroot2[1]][-h:]])
+        # print(np.abs(phi1[-h:] - phi2[-h:]))
+        btoas[0] = np.mean([toas[mroot2[0]][-h:], toas[mroot2[1]][-h:]], axis = 0)
+        for i in range(len(nmroots2)):
+            nmroot = nmroots2[i]
+            bfields[i + 1] = constructField(*fields[nmroot][:, -h:])
+            btoas[i + 1] = toas[nmroot][-h:]
+            
+        infields = np.zeros([realn, npoints - h], dtype = complex)
+        intoas = np.zeros([realn, npoints - h])
+        for i in range(realn):
+            infields[i] = constructField(*fields[i][:, :-h])
+            intoas[i] = toas[i][:-h]
+            
+        return np.array([[infields, bfields], [intoas, btoas]])
 
 # Momentarily useless stuff
 
