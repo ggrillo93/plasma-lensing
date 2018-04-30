@@ -23,6 +23,7 @@ def GOfield(uvec, rF2, lc, ax, ay):
     amp = (ax*ay/rF2)*np.abs(H)**-0.5
     phase = phi(uvec, rF2, lc, ax, ay)
     pshift = pi*(delta + 1)*sigma*0.25
+    # return amp*np.exp(1j*(phase + pshift))
     return np.array([amp, phase, pshift])
 
 # Amplitudes
@@ -229,16 +230,18 @@ def uniAsympTOA(roots, fields, toas, realn, npoints, sig):
             g1 = A1 - A2
         chi = 0.5*(phi1 + phi2)
         xi = -(0.75*pdiff)**(2./3.)
+        # air = airsqrenv(np.abs(xi))**0.5
         air = airy(xi)
         a1 = pi**0.5 *((A1 + A2)*(-xi)**0.25*air[0] - 1j*g1*(-xi)**-0.25*air[1]) * np.exp(1j*(chi + sig*0.25*pi))
+        # a1 = pi**0.5 *((A1 + A2)*(-xi)**0.25*air) * np.exp(1j*(chi + sig*0.25*pi))
         return a1
     
     merge = [findClosest(roots[0].real), findClosest(roots[-1].real)] # find closest real roots at each end
     mroot1, mroot2 = merge[0][0], merge[1][0] # set indices of merging roots
     nmroots1 = list(set(range(realn)) - set(mroot1)) # indices of non merging roots at one end
     nmroots2 = list(set(range(realn)) - set(mroot2)) # indices of non merging roots at other end
-    
-    if merge[0][1] < 0.3 and merge[1][1] < 0.3: # case 1: real root merging at both ends. need to segment.
+    print(merge)
+    if merge[0][1] < 0.1 and merge[1][1] < 0.1: # case 1: real root merging at both ends
             
         A1, phi1 = fields[mroot1[0]][:2]
         A2, phi2 = fields[mroot1[1]][:2]
@@ -268,16 +271,20 @@ def uniAsympTOA(roots, fields, toas, realn, npoints, sig):
             btoas1[i + 1] = toas[nmroot1][:h1]
             btoas2[i + 1] = toas[nmroot2][-h2:]
         
-        infields = np.zeros([realn, npoints - h1 - h2], dtype = complex)
-        intoas = np.zeros([realn, npoints - h1 - h2])
-        
-        for i in range(realn):
-            infields[i] = constructField(*fields[i][:, h1:-h2])
-            intoas[i] = toas[i][h1:-h2]
-        
-        return np.array([[bfields1, infields, bfields2], [btoas1, intoas, btoas2]])
+        if npoints - h1 - h2 > 0:
+            infields = np.zeros([realn, npoints - h1 - h2], dtype = complex)
+            intoas = np.zeros([realn, npoints - h1 - h2])
             
-    elif merge[0][1] < 0.3 and merge[1][1] > 0.3: # case 2: real root merging at first end only
+            for i in range(realn):
+                infields[i] = constructField(*fields[i][:, h1:-h2])
+                intoas[i] = toas[i][h1:-h2]
+                
+            return np.array([[bfields1, infields, bfields2], [btoas1, intoas, btoas2]])
+            
+        else:
+            return np.array([ [bfields1[:h2], bfields2[-h1:]], [btoas1[:h2], btoas2[-h1:]] ])
+            
+    elif merge[0][1] < 0.1 and merge[1][1] > 0.1: # case 2: real root merging at first end only
         
         A1, phi1 = fields[mroot1[0]][:2]
         A2, phi2 = fields[mroot1[1]][:2]
@@ -302,7 +309,7 @@ def uniAsympTOA(roots, fields, toas, realn, npoints, sig):
         
         return np.array([[bfields, infields], [btoas, intoas]])
         
-    elif merge[0][1] > 0.3 and merge[1][1] < 0.3: # case 3: real root merging at second end only
+    elif merge[0][1] > 0.1 and merge[1][1] < 0.1: # case 3: real root merging at second end only
         
         A1, phi1 = fields[mroot2[0]][:2]
         A2, phi2 = fields[mroot2[1]][:2]
@@ -310,7 +317,7 @@ def uniAsympTOA(roots, fields, toas, realn, npoints, sig):
         dphi = np.abs(phi1 - phi2)
         # print(dphi)
         h = npoints - np.argwhere(dphi < pi).flatten()[0]
-        print(h)
+        # print(h)
         
         bfields = np.zeros([realn - 1, h], dtype = complex)
         btoas = np.zeros([realn - 1, h])

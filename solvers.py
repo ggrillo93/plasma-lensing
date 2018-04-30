@@ -529,9 +529,7 @@ def rootFinderFreqBulk(segs, nreal, ncomplex, npoints, ucross, upvec, uvec, leqi
                 else:
                     print('Error 1')
                     print(upvec)
-                    # print(seg[j])
-                    # print(temp)
-                    # print(roots[j].real)
+                    print(seg[j])
                     roots[j-1][k] = roots[j][k]
         for j in range(npoints/2 + 1, npoints): # find real roots from middle point towards end point
             leqcoeff = coeff/seg[j]**2
@@ -542,13 +540,11 @@ def rootFinderFreqBulk(segs, nreal, ncomplex, npoints, ucross, upvec, uvec, leqi
                 else:
                     print('Error 2')
                     print(upvec)
-                    # print(seg[j])
-                    # print(temp)
-                    # print(roots[j-1].real)
+                    print(seg[j])
                     roots[j][k] = roots[j-1][k]
         if ncomplex[i] > 0:
             p = i - 1
-            if i < len(segs)/2 and ncomplex[0] != 0: # need to flip
+            if i < len(segs)/2 and ncomplex[0] != 0:  # need to flip
                 seg = np.flipud(seg)
                 roots = np.flipud(roots)
                 p = i
@@ -556,18 +552,7 @@ def rootFinderFreqBulk(segs, nreal, ncomplex, npoints, ucross, upvec, uvec, leqi
             roots[0][int(nreal[i])] = scomp
             roots = findAllComp(roots, seg, int(nreal[i]))
             if i < len(segs)/2 and ncomplex[0] != 0:
-                seg = np.flipud(seg) # flip back
+                seg = np.flipud(seg)  # flip back
                 roots = np.flipud(roots)
-            if ncomplex[i] == 2:
-                if i >= len(segs)/2:
-                    seg = np.flipud(seg)
-                    roots = np.flipud(roots)
-                    scomp = findFirstComp(ucross[p + 1], seg[0])
-                else:
-                    scomp = findFirstComp(ucross[p - 1], seg[0])
-                roots[0][int(nreal[i]) + 1] = scomp
-                roots = findAllComp(roots, seg, int(nreal[i]) + 1)
-                if i >= len(segs)/2:
-                    roots = np.flipud(roots)
         allroots.append(roots)
     return allroots

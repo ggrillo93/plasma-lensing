@@ -44,7 +44,7 @@ def planeSliceTOA(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints):
     bound = np.append(bound, np.array([[xmax, ymax]]), axis = 0)
     midpoints = [(bound[i] + bound[i+1])/2. for i in range(len(bound) - 1)] # find middle point between boundaries
     nzones = len(midpoints)
-    nreal = np.zeros(nzones)
+    nreal = np.zeros(nzones, dtype = int)
     for i in range(nzones): # find number of roots at each midpoint
         mpoint = midpoints[i]
         nreal[i] = len(findRoots(lensEq, 2*uxmax, 2*uymax, args = (mpoint, coeff)))
@@ -89,11 +89,13 @@ def planeSliceTOA(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints):
     ax1.grid()
     
     ax2 = plt.subplot(grid[:, 0]) # Plot results
-    colors = ['blue', 'red', 'green', 'orange', 'purple']
+    colors = assignColor(allroots, nreal)
     for i in range(len(upxvecs)):
         zone = alltoas[i]
         for j in range(len(zone)):
-            ax2.plot(upxvecs[i], zone[j], color = 'black')
+            ax2.plot(upxvecs[i], zone[j], color = colors[i][j])
+    for i in range(ncross):
+        ax2.plot([upcross[i][0], upcross[i][0]], [-100, 100], color = 'black', ls = 'dashed', scaley = False, scalex = False)
     ax2.set_ylabel(r'$\Delta t \: (\mu s)$')
     ax2.set_xlabel(r"$u'_x$")
     ax2.set_title('Lens shape: ' + '$%s$' % sym.latex(lensf))
@@ -118,7 +120,7 @@ def planeSliceTOA(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints):
     plt.show()
     return
      
-def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 3000, gsizex = 2048, gsizey = 2048):
+def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 3000, gsizex = 2048, gsizey = 2048, comp = True):
     """ Plots gain for slice across the u'-plane for given lens parameters, observation frequency, uxmax, slope m and offset n. Compares it to the gain given by solving the Kirchhoff diffraction integral using convolution. Plots the slice gain and the entire u' plane gain. """
 
     # Calculate coefficients
@@ -175,14 +177,18 @@ def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 3000, gsi
     upxvecs = np.array([np.linspace(bound[i-1][0] + cdist, bound[i][0] - cdist, npoints) for i in range(1, ncross + 2)]) # generate upx vector
     segs = np.asarray([lineVert(upx, m, n) for upx in upxvecs]) # generate slice across plane
     diff = difference(nreal) # determine number of complex solutions
-    ncomplex = np.ones(nzones)*100
-    for i in range(nzones):
-        if diff[i] == 0 or diff[i] == -2:
-            ncomplex[i] = 1
-        elif diff[i] == -4:
-            ncomplex[i] = 2
-        elif diff[i] == 4:
-            ncomplex[i] = 0
+    if comp == True:
+        ncomplex = np.ones(nzones)*100
+        for i in range(nzones):
+            if diff[i] == 0 or diff[i] == -2:
+                ncomplex[i] = 1
+            elif diff[i] == -4:
+                ncomplex[i] = 2
+            elif diff[i] == 4:
+                ncomplex[i] = 0
+    else:
+        ncomplex = np.zeros(nzones)
+        
     print(nreal)
     print(ncomplex)
 
