@@ -1,5 +1,6 @@
 from fundfunctions import *
 from upslice import *
+from joblib import Parallel, delayed
 
 def dmcalc(f, lc):
     return -f*lc/(c*re)
@@ -248,7 +249,7 @@ def planeSliceGFig3(uxmax, uymax, rF2, lc, ax, ay, m, n, npoints = 3000, gsizex 
     xx = np.linspace(gridToPixel(xmin, uxmax, gsizex/2), gridToPixel(xmax, uxmax, gsizex/2) - 1, gsizex)
     yy = np.linspace(gridToPixel(ymin, uymax, gsizey/2), gridToPixel(ymax, uymax, gsizey/2) - 1, gsizey)
 
-    cdist = uxmax/(np.abs(5*lc))
+    cdist = uxmax/(np.abs(50*lc))
     print(cdist)
 
     bound = np.insert(upcross, 0, np.array([[xmin, ymin]]), axis = 0) # set up boundaries
@@ -310,7 +311,7 @@ def planeSliceGFig3(uxmax, uymax, rF2, lc, ax, ay, m, n, npoints = 3000, gsizex 
     soln = soln[int(0.25*gsizex):int(0.75*gsizex), int(0.25*gsizey):int(0.75*gsizey)]
 
     # Plots
-    fig = plt.figure(figsize = (15, 10))
+    fig = plt.figure(figsize = (20, 7.5))
     grid = gs.GridSpec(1, 2)
     # tableax = plt.subplot(grid[1, :])
     # tableax2 = plt.subplot(grid[2, :])
@@ -323,7 +324,8 @@ def planeSliceGFig3(uxmax, uymax, rF2, lc, ax, ay, m, n, npoints = 3000, gsizex 
     rx2 = np.linspace(xmin, xmax, gsizex)
     im0 = ax0.imshow(soln, origin = 'lower', extent = extent, aspect = 'auto') # Plot entire screen
     cbar = fig.colorbar(im0, ax = ax0)
-    cbar.set_label('G', fontsize = 16)
+    # cbar.set_label(r'$\log{G}$', fontsize = 16)
+    cbar.set_label('G', fontsize=16)
     ucaus = causCurve([ux, uy], lc*np.array([uF2x, uF2y]))
     cs = plt.contour(np.linspace(-uxmax, uxmax, gsizex), ry, ucaus, levels = [0, np.inf], linewidths = 0)
     paths = cs.collections[0].get_paths()
@@ -341,16 +343,19 @@ def planeSliceGFig3(uxmax, uymax, rF2, lc, ax, ay, m, n, npoints = 3000, gsizex 
     # ax0.set_title("Gain in the u' plane")
 
     G = map_coordinates(soln.T, np.vstack((xx, yy))) # Plot gain along observer motion
-    ax1.plot(rx2, G, color = 'blue')
+    G = G - G[-1] + 1
+    ax1.plot(rx2, G, color = 'blue', label = "Gain from FFT")
     for caus in upcross.T[0]:
         ax1.plot([caus, caus], [-10, 1000], ls = 'dashed', color = 'black')
-    ax1.plot(finx, asymG, color = 'red')
+    ax1.plot(finx, asymG, color = 'red', label = "Gain from second order GO")
     ax1.set_ylim(-cdist, np.max(asymG) + 1.)
     ax1.set_xlim(np.min(rx2), np.max(rx2))
     ax1.set_xlabel(r"$u'_x$", fontsize = 16)
-    ax1.set_ylabel('G')
+    ax1.set_ylabel('G', fontsize = 16)
     # ax1.set_title("Slice Gain")
     ax1.grid()
+    ax1.legend(loc = 1)
+
 
     # col_labels = ['Parameter', 'Value'] # Create table with parameter values
     # if np.abs(dm/pctocm) < 1:
@@ -374,11 +379,60 @@ def planeSliceGFig3(uxmax, uymax, rF2, lc, ax, ay, m, n, npoints = 3000, gsizex 
     # table2.set_fontsize(12)
     # table2.scale(2.5, 2.5)
 
-    grid.tight_layout(fig)
+    grid.tight_layout(fig, pad = 1.5)
     plt.show()
     return
 
-# # figure 2.2a
+def causDspectra(uxmax, uymax, ax, ay, dso, dsl, dm, m, n, N = 1000):
+    """ Constructs caustic curves for path along the u' plane as a function of frequency. """
+    
+    ymin = -m*uxmax + n
+    ymax = m*uxmax + n
+    if ymin < -uymax:
+        xmin = (-uymax - n)/m
+        ymin = m*xmin + n
+    else:
+        xmin = -uxmax
+    if ymax > uymax:
+        xmax = (uymax - n)/m
+        ymax = m*xmax + n
+    else:
+        xmax = uxmax
+    
+    dlo = dso - dsl
+    coeff = dsl*dlo*re*dm/(2*pi*dso)
+    
+    rx = np.linspace(xmin - 5., xmax + 5., 500)
+    ry = np.linspace(ymin - 5., ymax + 5., 500)
+    uvec = np.meshgrid(rx, ry)
+    A, B, C, D, E = causticFreqHelp(uvec, ax, ay, m, n)
+    upxvec = np.linspace(xmin, xmax, N)
+    freqcaus = []
+    for upx in upxvec:
+        eq1 = A*upx**2 + B*upx + C
+        eq2 = D*upx + E
+        evcaus = np.array([eq1, eq2])
+        roots = polishedRootsBulk(evcaus, causEqFreq, rx, ry, args = (upx, ax, ay, m, n))
+        for root in roots:
+            ux, uy = root
+            arg = coeff*lensg(ux, uy)[0]/(ux - upx)
+            # print(arg)
+            if arg > 0:
+                freq = c*np.sqrt(arg)/(ax*GHz)
+                if freq > 0.01:
+                    freqcaus.append([upx, freq])
+    # print(freqcaus)
+    freqcaus = np.asarray(freqcaus).T
+    plt.scatter(freqcaus[0], freqcaus[1], marker = '.', color = 'black', s = 3.)
+    plt.xlim(xmin, xmax)
+    plt.ylim(0., max(freqcaus[1]) + 0.5)
+    plt.xlabel(r"$u'_x$", fontsize = 16)
+    plt.ylabel(r'$\nu$ (GHz)', fontsize = 16)
+    plt.grid()
+    plt.show()
+    return freqcaus
+    
+# # figure 2a
 # dso, dsl, f, lc, ax, ay = 1.*kpc*pctocm, 0.5*kpc*pctocm, 0.8*GHz, -50., 0.015*autocm, 0.015*autocm
 # dm = dmcalc(f, lc)
 # print(dm/pctocm)
@@ -391,7 +445,7 @@ def planeSliceGFig3(uxmax, uymax, rF2, lc, ax, ay, m, n, npoints = 3000, gsizex 
 # # causPlotter(5., 5., alp, ax, ay)
 # planeSliceGEx(5.5, 5.5, rF2, lc, ax, ay, 1., 0., npoints=3000, gsizex=2048, gsizey=2048, comp=False)
 
-# # figure 2.2b
+# # figure 2b
 # dso, dsl, f, lc, ax, ay = 1.*kpc*pctocm, 0.5*kpc*pctocm, 0.8*GHz, -250., 0.015*autocm*5**0.5, 0.015*autocm*5**0.5
 # dm = dmcalc(f, lc)
 # print(dm/pctocm)
@@ -403,15 +457,45 @@ def planeSliceGFig3(uxmax, uymax, rF2, lc, ax, ay, m, n, npoints = 3000, gsizex 
 # print(lc)
 # planeSliceGEx(5.5, 5.5, rF2, lc, ax, ay, 1., 0., npoints=3000, gsizex=2*2048, gsizey=2*2048, comp=False)
 
-# figure 2.3a
-dso, dsl, f, lc, ax, ay = 1.*kpc*pctocm, 0.5*kpc*pctocm, 0.8*GHz, 100., 0.02*autocm, 0.03*autocm
-dm = dmcalc(f, lc)
-print(dm/pctocm)
+# second order examples
+# dso, dsl, f, lc, ax, ay = 1.*kpc*pctocm, 0.5*kpc*pctocm, 0.8*GHz, 80., 0.015*autocm, 0.03*autocm
+# dm = dmcalc(f, lc)
+# print(dm/pctocm)
+# rF2 = rFsqr(dso, dsl, f)
+# alp = lc*rF2
+# print(alp/autocm**2)
+# print([alp/ax**2, alp/ay**2])
+# lc = lensc(dm, f)
+# print(lc)
+# # causPlotter(5., 5., alp, ax, ay, m= 0.2, n = 0)
+# planeSliceGFig3(5., 2., rF2, lc, ax, ay, 0.3, 0., npoints=5000, gsizex=2*2048, gsizey=2*2048, comp=True)
+
+# caustics in dynamic spectra
+# dso, dsl, dm, ax, ay = 1.*kpc*pctocm, 0.5*kpc*pctocm, 1e-3*pctocm, 0.5*autocm, 1.*autocm
+# lc = lensc(dm, 0.8*GHz)
+# print(lc)
+# # causDspectra(5., 5., ax, ay, dso, dsl, dm, 3., -1., N=750)
+# off = [0., 1., 1.5, 2.]
+# slopes = [1., 0.5, 0., 0.3]
+# freqcaus = Parallel(n_jobs = 4)(delayed(causDspectra)(*[5., 5., ax, ay, dso, dsl, dm, slopes[i], off[i]]) for i in range(4))
+# colors = ['blue', 'red', 'green', 'grey']
+# plt.figure(figsize=(10, 10))
+# for i in range(4):
+#     plt.scatter(freqcaus[i][0], freqcaus[i][1], marker = '.', color = colors[i], s = 4.)
+# plt.xlim(-5., 5.)
+# # plt.ylim(0., max(freqcaus[1]) + 0.5)
+# plt.xlabel(r"$u'_x$", fontsize = 16)
+# plt.ylim(0., 2.)
+# plt.ylabel(r'$\nu$ (GHz)', fontsize = 16)
+# plt.grid()
+# plt.tight_layout()
+# plt.show()
+
+# dynamic spectrum of overdense rectangular gaussian
+dso, dsl, dm, ax, ay, f = 1.*kpc*pctocm, 0.5*kpc*pctocm, 5e-4*pctocm, 0.8*autocm, 0.8*autocm, 0.8*GHz
+lc = lensc(dm, f)
 rF2 = rFsqr(dso, dsl, f)
 alp = lc*rF2
-print(alp/autocm**2)
 print([alp/ax**2, alp/ay**2])
-lc = lensc(dm, f)
-print(lc)
-# causPlotter(5., 5., alp, ax, ay)
-planeSliceGFig3(5., 5., rF2, lc, ax, ay, 0.5, 0., npoints=5000, gsizex=2*2048, gsizey=2*2048, comp=True)
+causPlotter(5., 5., alp, ax, ay, m=0.5, n=2.)
+# causDspectra(5., 5., ax, ay, dso, dsl, dm, 0.5, 2., N = 250)

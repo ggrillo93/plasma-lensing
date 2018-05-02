@@ -19,8 +19,15 @@ autocm = 1.4960e13
 pi = np.pi
 
 u_x, u_y = sym.symbols('u_x u_y')
-# A, B = 1e-2, 5
-lensf = sym.exp(-u_x**2 - u_y**2) # sym.sinc(u_x+u_y)**2 # 0.5/((u_x+u_y)**2 + 0.25)*(1./pi) #1./(sym.exp(u_x + u_y) + sym.exp(-u_x-u_y)))**2. #*(1. - A*(sym.sin(B*u_x)+sym.sin(B*u_y)))
+A, B = 1.5e-2, 5
+gauss = sym.exp(-u_x**2-u_y**2)
+ring = (u_x**2 + u_y**2)*gauss
+rectgauss = sym.exp(-u_x**4-u_y**4)
+stgauss = gauss*(1. - A*(sym.sin(B*u_x)+sym.sin(B*u_y)))
+asymgauss = sym.exp(-u_x**2-u_y**4)
+supergauss2 = sym.exp(-(u_x**2+u_y**2)**2)
+supergauss3 = sym.exp(-(u_x**2+u_y**2)**3)
+lensf = supergauss2
 lensg = np.array([sym.diff(lensf, u_x), sym.diff(lensf, u_y)])
 lensh = np.array([sym.diff(lensf, u_x, u_x), sym.diff(lensf, u_y, u_y), sym.diff(lensf, u_x, u_y)])
 lensgh = np.array([sym.diff(lensf, u_x, u_x, u_x), sym.diff(lensf, u_x, u_x, u_y), sym.diff(lensf, u_x, u_y, u_y), sym.diff(lensf, u_y, u_y, u_y)])

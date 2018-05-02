@@ -314,7 +314,7 @@ def rootFinder(segs, nreal, ncomplex, npoints, ucross, uxmax, uymax, coeff):
             croot = op.root(compLensEq, [ucross[0], guess, ucross[1], guess], args=(uppoint, coeff))
             # print(croot)
             # check that the root finder finds the correct complex ray
-            if croot.success and np.abs(croot.x[1]) > 1e-6*np.abs(croot.x[0]) and np.abs(croot.x[0] - ucross[0]) < 0.1 and np.abs(croot.x[1]/croot.x[0]) < 1.:
+            if croot.success and np.abs(croot.x[1]) > 1e-6*np.abs(croot.x[0]) and np.abs(croot.x[0] - ucross[0]) < 0.1 and np.abs(croot.x[1]/croot.x[0]) < 0.1:
                 print([ucross, croot.x])
                 croot1 = [croot.x[0] + 1j*croot.x[1], croot.x[2] + 1j*croot.x[3]]
                 return croot1

@@ -151,8 +151,7 @@ def uniAsymp(allroots, allfields, nreal, ncomplex, npoints, nzones, sigs):
         else: # deal with merging real roots
             merge = [findClosest(roots[0][:realn].real), findClosest(roots[-1][:realn].real)] # find closest real roots at each end
             mroot1, mroot2 = merge[0][0], merge[1][0] # set indices of merging roots
-            # print([mroot1, mroot2])
-            # print([merge[0][1], merge[1][1]])
+            print(merge)
             nmroots1 = list(set(range(realn)) - set(mroot1)) # indices of non merging roots at one end
             nmroots2 = list(set(range(realn)) - set(mroot2)) # indices of non merging roots at other end
             if merge[0][1] < 0.4 and merge[1][1] < 0.4: # case 1: real root merging at both ends
