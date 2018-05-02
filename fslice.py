@@ -40,7 +40,7 @@ def fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, npoints = 3000, comp = True
         sigs[i] = np.sign(ax**2/rF2 + lc*lensh(ucrossb[i][0], ucrossb[i][1])[0])
     print(sigs)
         
-    cdist = 1e6
+    cdist = 1e4
 
     # Set up boundaries
     bound = np.insert(fcross, 0, fmin)

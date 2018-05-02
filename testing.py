@@ -4,7 +4,9 @@ from kdi import *
 from dspectra import *
 from toapertopt import *
 
-dso, dsl, f, dm, ax, ay = 1.1*kpc*pctocm, 0.55*kpc*pctocm, 0.8*GHz, -7e-4*pctocm, 0.5*autocm, 0.5*autocm
+dso, dsl, f, dm, ax, ay = 1.*kpc*pctocm, 0.5*kpc*pctocm, 0.8*GHz, 1e-4*pctocm, 0.1*autocm, 0.2*autocm
+
+fsliceGfull([-0.03002001,  2.48498999], 5., 5., 0.1*GHz, 1.5*GHz, dso, dsl, dm, ax, ay, 0.5, 2.5, N=200, npoints=1500, comp = True)
 
 # Test toapert.py
 # path = '/home/gian/Documents/Research/NANOGrav/Lensing/Scripts/Simulation/Templates/J1713+0747.Rcvr_800.GUPPI.9y.x.sum.sm'
@@ -63,7 +65,7 @@ def runTests():
 
 
 # findRoots(causticEqSlice, 4., 4., args=(alp, 1., 0.5, ax, ay), plot = True)
-runTests()
+# runTests()
 # solveKDI(2., 2., dso, dsl, f, dm, ax, ay, 2048, 2048, m = 1, n = 0.5)
 # tdm0 = c*re*dm/(2*pi*f**2)
 # # print(tdm0)

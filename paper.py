@@ -458,7 +458,7 @@ def causDspectra(uxmax, uymax, ax, ay, dso, dsl, dm, m, n, N = 1000):
 # planeSliceGEx(5.5, 5.5, rF2, lc, ax, ay, 1., 0., npoints=3000, gsizex=2*2048, gsizey=2*2048, comp=False)
 
 # second order examples
-# dso, dsl, f, lc, ax, ay = 1.*kpc*pctocm, 0.5*kpc*pctocm, 0.8*GHz, 80., 0.015*autocm, 0.03*autocm
+# dso, dsl, f, lc, ax, ay = 1.*kpc*pctocm, 0.5*kpc*pctocm, 1.4*GHz, -30., 0.015*autocm, 0.025*autocm
 # dm = dmcalc(f, lc)
 # print(dm/pctocm)
 # rF2 = rFsqr(dso, dsl, f)
@@ -468,7 +468,7 @@ def causDspectra(uxmax, uymax, ax, ay, dso, dsl, dm, m, n, N = 1000):
 # lc = lensc(dm, f)
 # print(lc)
 # # causPlotter(5., 5., alp, ax, ay, m= 0.2, n = 0)
-# planeSliceGFig3(5., 2., rF2, lc, ax, ay, 0.3, 0., npoints=5000, gsizex=2*2048, gsizey=2*2048, comp=True)
+# planeSliceGFig3(5., 5., rF2, lc, ax, ay, 0.3, 0., npoints=2000, gsizex=2*2048, gsizey=2*2048, comp=True)
 
 # caustics in dynamic spectra
 # dso, dsl, dm, ax, ay = 1.*kpc*pctocm, 0.5*kpc*pctocm, 1e-3*pctocm, 0.5*autocm, 1.*autocm
@@ -492,10 +492,10 @@ def causDspectra(uxmax, uymax, ax, ay, dso, dsl, dm, m, n, N = 1000):
 # plt.show()
 
 # dynamic spectrum of overdense rectangular gaussian
-dso, dsl, dm, ax, ay, f = 1.*kpc*pctocm, 0.5*kpc*pctocm, 5e-4*pctocm, 0.8*autocm, 0.8*autocm, 0.8*GHz
+dso, dsl, dm, ax, ay, f = 1.*kpc*pctocm, 0.5*kpc*pctocm, 1e-4*pctocm, 0.1*autocm, 0.2*autocm, 0.8*GHz
 lc = lensc(dm, f)
 rF2 = rFsqr(dso, dsl, f)
 alp = lc*rF2
 print([alp/ax**2, alp/ay**2])
-causPlotter(5., 5., alp, ax, ay, m=0.5, n=2.)
-# causDspectra(5., 5., ax, ay, dso, dsl, dm, 0.5, 2., N = 250)
+# causPlotter(5., 5., alp, ax, ay, m=0.5, n=2.)
+causDspectra(5., 5., ax, ay, dso, dsl, dm, 0.5, 2.5, N = 250)
