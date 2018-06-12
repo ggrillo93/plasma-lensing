@@ -210,8 +210,8 @@ def fslicepert(upvec, fmin, fmax, dso, dsl, dm, ax, ay, template, period, npoint
         fig, axarr = plt.subplots(3, sharex = True)
         axarr[2].plot([-1, 10], [0, 0], ls='dashed', color='black')
         axarr[2].plot(segs.flatten()/GHz, toapert.flatten(), color = 'red')
-        axarr[2].set_ylabel(r'$\Delta t_{comb}$ ($\mu s$)')
-        axarr[2].set_xlabel(r'$\nu$ (GHz)')
+        axarr[2].set_ylabel(r'$\Delta t_{comb}$ ($\mu s$)', fontsize = 20)
+        axarr[2].set_xlabel(r'$\nu$ (GHz)', fontsize = 20)
         axarr[2].set_xlim([fmin/GHz, fmax/GHz])
         for i in range(len(segs)):
             field = combfields[i]
@@ -221,8 +221,11 @@ def fslicepert(upvec, fmin, fmax, dso, dsl, dm, ax, ay, template, period, npoint
                 axarr[1].plot(segs[i]/GHz, toas[j], color = 'blue')
         axarr[0].set_yscale('log')
         axarr[0].set_ylabel('G')
-        axarr[1].set_ylabel(r'$\Delta t_{ind}$ ($\mu s$)')
+        axarr[1].set_ylabel(r'$\Delta t_{ind}$ ($\mu s$)', fontsize = 20)
         axarr[1].set_yscale('symlog')
+        axarr[1].tick_params(labelsize= 16)
+        axarr[0].tick_params(labelsize=16)
+        axarr[2].tick_params(labelsize=16)
         plt.show()
         
     return

@@ -118,7 +118,7 @@ def lineVert(upxvec, m, n):
     """ Returns list of line vertices. """
     return np.array([upxvec, m*upxvec + n]).T
     
-def uniAsymp(allroots, allfields, nreal, ncomplex, npoints, nzones, sigs):
+def uniAsymp(allroots, allfields, nreal, ncomplex, nzones, sigs):
     """ Constructs the uniform asympotics for a segmented array of roots and their respective fields. """
     
     def bright(A1, A2, phi1, phi2, sig):
@@ -139,19 +139,19 @@ def uniAsymp(allroots, allfields, nreal, ncomplex, npoints, nzones, sigs):
         a1 = 2*pi**0.5*A*(xi)**0.25 * airy(xi)[0] * np.exp(1j*(phi.real + sig*0.25*pi))
         return a1
     
-    asymp = np.zeros([nzones, npoints])
+    asymp = np.array([])
     
     for i in range(nzones):
         p = i - 1 # caustic index
         roots, fields = allroots[i], allfields[i]
         nroots = (ncomplex + nreal)[i]
+        npoints = len(roots)
         realn = int(nreal[i])
         if nreal[i] == 1: # no real roots merge
             areal = constructField(*fields[0])
         else: # deal with merging real roots
             merge = [findClosest(roots[0][:realn].real), findClosest(roots[-1][:realn].real)] # find closest real roots at each end
             mroot1, mroot2 = merge[0][0], merge[1][0] # set indices of merging roots
-            print(merge)
             nmroots1 = list(set(range(realn)) - set(mroot1)) # indices of non merging roots at one end
             nmroots2 = list(set(range(realn)) - set(mroot2)) # indices of non merging roots at other end
             if merge[0][1] < 0.4 and merge[1][1] < 0.4: # case 1: real root merging at both ends
@@ -165,18 +165,18 @@ def uniAsymp(allroots, allfields, nreal, ncomplex, npoints, nzones, sigs):
                         anonm = anonm + constructField(*fields[index]) # sum of fields not involved in merging
                     areal = amerge + anonm
                 else: # different roots merge at each end
-                    A11, A21 = np.split(fields[mroot1[0]][0], 2)[0], np.split(fields[mroot1[1]][0], 2)[0]
-                    A32, A42 = np.split(fields[mroot2[0]][0], 2)[1], np.split(fields[mroot2[1]][0], 2)[1]
-                    phi11, phi21 = np.split(fields[mroot1[0]][1], 2)[0], np.split(fields[mroot1[1]][1], 2)[0]
-                    phi32, phi42 = np.split(fields[mroot2[0]][1], 2)[1], np.split(fields[mroot2[1]][1], 2)[1]
+                    A11, A21 = np.array_split(fields[mroot1[0]][0], 2)[0], np.array_split(fields[mroot1[1]][0], 2)[0]
+                    A32, A42 = np.array_split(fields[mroot2[0]][0], 2)[1], np.array_split(fields[mroot2[1]][0], 2)[1]
+                    phi11, phi21 = np.array_split(fields[mroot1[0]][1], 2)[0], np.array_split(fields[mroot1[1]][1], 2)[0]
+                    phi32, phi42 = np.array_split(fields[mroot2[0]][1], 2)[1], np.array_split(fields[mroot2[1]][1], 2)[1]
                     amerge1 = bright(A11, A21, phi11, phi21, sigs[p])
                     amerge2 = bright(A32, A42, phi32, phi42, sigs[p + 1])
-                    nmfields1 = [constructField(*np.split(fields[nmroot], 2, axis = 1)[0]) for nmroot in nmroots1]
-                    nmfields2 = [constructField(*np.split(fields[nmroot], 2, axis = 1)[1]) for nmroot in nmroots2]
-                    anonm1 = np.zeros(npoints/2, dtype = complex)
+                    nmfields1 = [constructField(*np.array_split(fields[nmroot], 2, axis = 1)[0]) for nmroot in nmroots1]
+                    nmfields2 = [constructField(*np.array_split(fields[nmroot], 2, axis = 1)[1]) for nmroot in nmroots2]
+                    anonm1 = np.zeros(len(amerge1), dtype = complex)
                     for j in range(len(nmroots1)):
                         anonm1 = anonm1 + nmfields1[j]
-                    anonm2 = np.zeros(npoints/2, dtype = complex)
+                    anonm2 = np.zeros(len(amerge2), dtype = complex)
                     for j in range(len(nmroots2)):
                         anonm2 = anonm2 + nmfields2[j]
                     areal = np.concatenate((amerge1 + anonm1, amerge2 + anonm2))
@@ -214,8 +214,8 @@ def uniAsymp(allroots, allfields, nreal, ncomplex, npoints, nzones, sigs):
                     acomp = acomp + dark(A2, phi2, sigs[p])
         else:
             acomp = np.zeros(npoints)
-        asymp[i] = np.abs(areal + acomp)**2
-    return asymp.flatten()
+        asymp = np.append(asymp, areal + acomp)
+    return np.asarray(asymp).flatten()
     
 def uniAsympTOA(roots, fields, toas, realn, npoints, sig):
     """ Constructs the uniform asympotics. """
@@ -314,8 +314,10 @@ def uniAsympTOA(roots, fields, toas, realn, npoints, sig):
         A2, phi2 = fields[mroot2[1]][:2]
         
         dphi = np.abs(phi1 - phi2)
-        # print(dphi)
-        h = npoints - np.argwhere(dphi < pi).flatten()[0]
+        if len(np.argwhere(dphi < pi).flatten()) != 0:
+            h = npoints - np.argwhere(dphi < pi).flatten()[0]
+        else:
+            h = npoints
         # print(h)
         
         bfields = np.zeros([realn - 1, h], dtype = complex)

@@ -387,7 +387,7 @@ def rootFinder(segs, nreal, ncomplex, npoints, ucross, uxmax, uymax, coeff):
                     scomp = findFirstComp(ucross[p - 1], seg[0])
                 roots[0][int(nreal[i]) + 1] = scomp
                 roots = findAllComp(roots, seg, int(nreal[i]) + 1)
-                print(roots)
+                # print(roots)
                 if i >= len(segs)/2:
                     roots = np.flipud(roots)
         allroots.append(roots)
@@ -395,7 +395,7 @@ def rootFinder(segs, nreal, ncomplex, npoints, ucross, uxmax, uymax, coeff):
 
 # Root finding along a set of frequencies
 
-def rootFinderFreq(segs, nreal, ncomplex, npoints, ucross, upvec, coeff):
+def rootFinderFreq(segs, nreal, ncomplex, ucross, upvec, coeff):
     """ Solves the lens equation for every pair of points in the u'-plane contained in upvec, given expected number of real and complex solutions. coeff = alpprime*[1./ax**2, 1./ay**2]"""
     
     def findFirstComp(ucross, fpoint):
@@ -405,7 +405,11 @@ def rootFinderFreq(segs, nreal, ncomplex, npoints, ucross, upvec, coeff):
             croot = op.root(compLensEq, [ucross[0], guess, ucross[1], guess], args=(np.array([upx + 0j, upy + 0j]), leqcoeff))
             # print(croot)
             # check that the root finder finds the correct complex ray
-            if croot.success and np.abs(croot.x[1]) > 1e-6*np.abs(croot.x[0]) and np.abs(croot.x[0] - ucross[0]) < 0.1 and np.abs(croot.x[1]/croot.x[0]) < 0.1:
+            if np.abs(ucross[0]) > 0.01:
+                cond = np.abs(croot.x[1]) > 1e-6*np.abs(croot.x[0]) and np.abs(croot.x[0] - ucross[0]) < 0.1 and np.abs(croot.x[1]/croot.x[0]) < 0.2
+            else:
+                cond = np.abs(croot.x[1]) > 1e-6*np.abs(croot.x[0]) and np.abs(croot.x[0] - ucross[0]) < 0.1
+            if croot.success and cond:
                 print([ucross, croot.x])
                 croot1 = [croot.x[0] + 1j*croot.x[1], croot.x[2] + 1j*croot.x[3]]
                 return croot1
@@ -431,6 +435,7 @@ def rootFinderFreq(segs, nreal, ncomplex, npoints, ucross, upvec, coeff):
     allroots = []
     for i in range(len(segs)):
         seg = segs[i]
+        npoints = len(seg)
         leqcoeff = coeff/seg[npoints/2]**2
         sreal = polishedRoots(lensEq, np.abs(upx) + 3., np.abs(upy) + 3., args = (upvec, leqcoeff)) # starting real roots
         # print(sreal)
@@ -476,7 +481,7 @@ def rootFinderFreq(segs, nreal, ncomplex, npoints, ucross, upvec, coeff):
         allroots.append(roots)
     return allroots
     
-def rootFinderFreqBulk(segs, nreal, ncomplex, npoints, ucross, upvec, uvec, leqinv, rx, ry, coeff):
+def rootFinderFreqBulk(segs, nreal, ncomplex, ucross, upvec, uvec, leqinv, rx, ry, coeff):
     """ Solves the lens equation for every pair of points in the u'-plane contained in upvec, given expected number of real and complex solutions. coeff = alpprime*[1./ax**2, 1./ay**2]"""
     
     def findFirstComp(ucross, fpoint):
@@ -486,14 +491,21 @@ def rootFinderFreqBulk(segs, nreal, ncomplex, npoints, ucross, upvec, uvec, leqi
             croot = op.root(compLensEq, [ucross[0], guess, ucross[1], guess], args=(np.array([upx + 0j, upy + 0j]), leqcoeff))
             # print(croot)
             # check that the root finder finds the correct complex ray
-            if croot.success and np.abs(croot.x[1]) > 1e-6*np.abs(croot.x[0]) and np.abs(croot.x[0] - ucross[0]) < 0.1 and np.abs(croot.x[1]/croot.x[0]) < 0.1:
+            if np.abs(ucross[0]) > 0.01:
+                cond = np.abs(croot.x[1]) > 1e-6*np.abs(croot.x[0]) and np.abs(croot.x[0] - ucross[0]) < 0.1 and np.abs(croot.x[1]/croot.x[0]) < 0.2
+            else:
+                cond = np.abs(croot.x[1]) > 1e-6*np.abs(croot.x[0]) and np.abs(croot.x[0] - ucross[0]) < 0.1
+            if croot.success and cond:
                 # print([ucross, croot.x])
                 croot1 = [croot.x[0] + 1j*croot.x[1], croot.x[2] + 1j*croot.x[3]]
                 return croot1
             elif croot.success:  # for debugging purposes
-                print([ucross, croot.x])
+                # print([ucross, croot.x])
+                pass
         print('No complex ray found')
+        print(upvec)
         return 0
+
     
     def findAllComp(roots, seg, pos):
         for j in range(1, npoints):
@@ -512,6 +524,7 @@ def rootFinderFreqBulk(segs, nreal, ncomplex, npoints, ucross, upvec, uvec, leqi
     allroots = []
     for i in range(len(segs)):
         seg = segs[i]
+        npoints = len(seg)
         freq2 = seg[npoints/2]**2
         leqcoeff = coeff/freq2
         leqinvtemp = leqinv/freq2
@@ -549,8 +562,12 @@ def rootFinderFreqBulk(segs, nreal, ncomplex, npoints, ucross, upvec, uvec, leqi
                 roots = np.flipud(roots)
                 p = i
             scomp = findFirstComp(ucross[p], seg[0])
-            roots[0][int(nreal[i])] = scomp
-            roots = findAllComp(roots, seg, int(nreal[i]))
+            if scomp != 0:
+                roots[0][int(nreal[i])] = scomp
+                roots = findAllComp(roots, seg, int(nreal[i]))
+            else:
+                print('Ignoring complex ray')
+                roots[:, int(nreal[i])] = 1j*0.1
             if i < len(segs)/2 and ncomplex[0] != 0:
                 seg = np.flipud(seg)  # flip back
                 roots = np.flipud(roots)

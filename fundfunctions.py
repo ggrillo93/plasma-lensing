@@ -23,11 +23,12 @@ A, B = 1.5e-2, 5
 gauss = sym.exp(-u_x**2-u_y**2)
 ring = 2.7182*(u_x**2 + u_y**2)*gauss
 rectgauss = sym.exp(-u_x**4-u_y**4)
-stgauss = gauss*(1. - A*(sym.sin(B*u_x)+sym.sin(B*u_y)))
+stgauss = gauss*(1. - A*(sym.sin(B*(u_x))+sym.sin(B*(u_y - 2*pi*0.3))))
 asymgauss = sym.exp(-u_x**2-u_y**4)
 supergauss2 = sym.exp(-(u_x**2+u_y**2)**2)
 supergauss3 = sym.exp(-(u_x**2+u_y**2)**3)
-lensf = stgauss
+superlorentz = 1./((u_x**2 + u_y**2)**2+1.)
+lensf = gauss
 lensg = np.array([sym.diff(lensf, u_x), sym.diff(lensf, u_y)])
 lensh = np.array([sym.diff(lensf, u_x, u_x), sym.diff(lensf, u_y, u_y), sym.diff(lensf, u_x, u_y)])
 lensgh = np.array([sym.diff(lensf, u_x, u_x, u_x), sym.diff(lensf, u_x, u_x, u_y), sym.diff(lensf, u_x, u_y, u_y), sym.diff(lensf, u_y, u_y, u_y)])
@@ -111,3 +112,17 @@ def assignColor(allroots, nreal):
             regcolor.append(colors[i-1][closest[1]])
         colors[i] = regcolor
     return colors
+
+def groupedAvg(myArray, N=2):
+    result = np.cumsum(myArray, 0)[N-1::N]/float(N)
+    result[1:] = result[1:] - result[:-1]
+    return result
+    
+def tempmatch(data, template, dt):
+    pulse = pp.SinglePulse(data)
+    shift = pulse.fitPulse(template)[1]
+    ans = shift*dt
+    return ans
+    
+def gaussian(t, fwhm, a, dt):
+    return a*np.exp(-4*np.log(2)*((t+dt)/fwhm)**2)

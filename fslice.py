@@ -3,7 +3,7 @@ from observables import *
 from solvers import *
 from upslice import *
 
-def fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, npoints = 3000, comp = True, plot = False):
+def fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, spacing = 1e5, chw = 1.5e6, comp = True, plot = False):
     
     # Calculate coefficients
     fcoeff = dsl*(dso - dsl)*re*dm/(2*pi*dso)
@@ -52,7 +52,7 @@ def fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, npoints = 3000, comp = True
         mpoint = midpoints[i]
         leqcoeff = coeff/mpoint**2
         nreal[i] = len(findRoots(lensEq, np.abs(upx) + 3., np.abs(upy) + 3., args = (upvec, leqcoeff), N = 1000))
-    segs = np.array([np.linspace(bound[i-1] + cdist, bound[i] - cdist, npoints) for i in range(1, ncross + 2)])
+    segs = np.array([np.arange(bound[i-1] + cdist, bound[i] - cdist, spacing) for i in range(1, ncross + 2)])
     if comp == True:
         diff = difference(nreal)
         print(diff)
@@ -70,7 +70,7 @@ def fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, npoints = 3000, comp = True
     print(ncomplex)
     
     # Solve lens equation at each coordinate
-    allroots = rootFinderFreq(segs, nreal, ncomplex, npoints, ucrossb, upvec, coeff)
+    allroots = rootFinderFreq(segs, nreal, ncomplex, ucrossb, upvec, coeff)
     
     # Calculate fields
     allfields = []
@@ -78,6 +78,7 @@ def fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, npoints = 3000, comp = True
         nroots = len(allroots[l][0])
         fvec = segs[l]
         roots = allroots[l]
+        npoints = len(fvec)
         fields = np.zeros([nroots, 3, npoints], dtype = complex)
         for i in range(npoints):
             freq = fvec[i]
@@ -106,6 +107,7 @@ def fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, npoints = 3000, comp = True
         fvec = segs[l]
         roots = allroots[l]
         nroots = int(nreal[l])
+        npoints = len(fvec)
         print(nroots)
         gains = np.zeros(npoints)
         for i in range(npoints):
@@ -120,9 +122,13 @@ def fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, npoints = 3000, comp = True
         allgains.append(gains)
     
     # Construct uniform asymptotics
-    asymp = uniAsymp(allroots, allfields, nreal, ncomplex, npoints, nzones, sigs)
-    interp = UnivariateSpline(segs.flatten(), asymp, s = 0)
-    finf = np.linspace(fmin + cdist, fmax, 2*npoints)
+    asymp = uniAsymp(allroots, allfields, nreal, ncomplex, nzones, sigs)
+    wind = int(chw/spacing)
+    asympav = groupedAvg(asymp, N = wind)
+    asymGav = np.abs(asympav)**2
+    interp = UnivariateSpline(np.hstack(segs), np.abs(asymp)**2, s = 0)
+    finf = np.linspace(fmin + cdist, fmax, len(asymp))
+    finfav = groupedAvg(finf, N=wind)
     asymG = interp(finf)
     
     if plot:
@@ -160,10 +166,11 @@ def fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, npoints = 3000, comp = True
         
         plt.show()
     
-    return np.array([finf/GHz, asymG, fcross, np.asarray(allgains).flatten(), np.asarray(segs).flatten()])
+    return np.array([finf/GHz, finfav/GHz, asymG, asymGav, fcross, np.hstack(allgains), np.hstack(segs)])
     
-def fsliceGBulk(upvec, fcaus, fmin, fmax, leqinv, ax, ay, rx, ry, uvec, rF2p, lcp, coeff, cdist, npoints, comp, plot = False):
+def fsliceGBulk(upvec, fcaus, fmin, fmax, leqinv, ax, ay, rx, ry, uvec, rF2p, lcp, coeff, cdist, npoints, comp, num, plot = False):
     
+    print(upvec)
     ucross, fcross = fcaus
     # print(fcross/GHz)
     ncross = len(ucross)
@@ -188,7 +195,7 @@ def fsliceGBulk(upvec, fcaus, fmin, fmax, leqinv, ax, ay, rx, ry, uvec, rF2p, lc
         nreal[i] = len(findRootsBulk(evleq, rx, ry))
     # print(nreal)
     segs = np.array([np.linspace(bound[i-1] + cdist, bound[i] - cdist, npoints) for i in range(1, ncross + 2)])
-    if comp == True:
+    if comp:
         diff = difference(nreal)
         ncomplex = np.ones(nzones)*100
         for i in range(nzones):
@@ -226,6 +233,12 @@ def fsliceGBulk(upvec, fcaus, fmin, fmax, leqinv, ax, ay, rx, ry, uvec, rF2p, lc
     interp = interp1d(np.sort(segs.flatten()), asymp)
     finf = np.linspace(fmin + cdist, fmax - cdist, npoints)
     asymG = interp(finf)
+    f_handle = file("dspectra" + str(num) + ".dat", 'a')
+    np.savetxt(f_handle, np.array([asymG]))
+    f_handle.close()
+    f_handle2 = file("dspectra" + str(num + 1) + ".dat", "a")
+    np.savetxt(f_handle2, np.array([upvec[0]]))
+    f_handle2.close()
     
     if plot:
         # Plots
@@ -241,29 +254,41 @@ def fsliceGBulk(upvec, fcaus, fmin, fmax, leqinv, ax, ay, rx, ry, uvec, rF2p, lc
         plt.grid()
         plt.show()
         
-    return asymG
+    return
     
-def fsliceGfull(upvec, uxmax, uymax, fmin, fmax, dso, dsl, dm, ax, ay, m, n, N=200, npoints=3000, comp = True):
+def fsliceGfull(upvec, uxmax, uymax, fmin, fmax, dso, dsl, dm, ax, ay, m, n, N=200, spacing = 1e5, chw = 1.5e6, comp = True):
         
     freqcaus = causCurveFreq(uxmax, uymax, ax, ay, dso, dsl, dm, m, n, plot = False, N = N)
-    finf, asymG, fcross, fogain, fvec = fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, plot = False, npoints = npoints, comp = comp)
+    finf, finfav, asymG, asymGav, fcross, fogain, fvec = fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, plot = False, spacing = spacing, comp = comp, chw = chw)
     
-    fig = plt.figure(figsize=(15, 10))
+    plt.close()
+    
+    fig = plt.figure(figsize=(14, 8), dpi = 100)
     grid = gs.GridSpec(2, 2, width_ratios=[4, 1])
-    ax2 = plt.subplot(grid[1:, 1])
+    ax2 = plt.subplot(grid[1, 1])
     ax1 = plt.subplot(grid[0, 1])
-    ax0 = plt.subplot(grid[:, 0])
+    ax0 = plt.subplot(grid[0, 0])
+    ax3 = plt.subplot(grid[1, 0])
     
     ax0.plot(finf, asymG, color = 'black')
     ax0.set_ylabel(r'$G$')
-    ax0.set_xlabel(r"$\nu$ (GHz)")
     ax0.set_title('Lens shape: ' + '$%s$' % sym.latex(lensf))
     for freq in fcross/GHz:
         ax0.plot([freq, freq], [-10, 1000], ls='dashed', color='black')
     ax0.plot(fvec/GHz, fogain, color = 'red')
     ax0.set_ylim(-0.1, np.max(asymG) + 1.)
-    ax0.set_xlim(fmin/GHz, fmax/GHz)
+    ax0.set_xlim(min(finfav), max(finfav))
     ax0.grid()
+    
+    ax3.plot(finfav, asymGav, color = 'black')
+    ax3.set_ylabel(r'$G$')
+    ax3.set_xlabel(r"$\nu$ (GHz)")
+    ax0.set_title('Lens shape: ' + '$%s$' % sym.latex(lensf))
+    for freq in fcross/GHz:
+        ax3.plot([freq, freq], [-10, 1000], ls='dashed', color='black')
+    ax3.set_ylim(-0.1, np.max(asymGav) + 1.)
+    ax3.set_xlim(min(finfav), max(finfav))
+    ax3.grid()
     
     ax1.scatter(freqcaus[0], freqcaus[1], marker= '.', color = 'red')
     ax1.set_xlim(min(freqcaus[0]), max(freqcaus[0]))
@@ -281,14 +306,16 @@ def fsliceGfull(upvec, uxmax, uymax, fmin, fmax, dso, dsl, dm, ax, ay, m, n, N=2
         dmlabel = "{:.2E}".format(Decimal(dm/pctocm))
     else:
         dmlabel = str(dm/pctocm)
-    tablevals = [[r'$d_{so} \: (kpc)$', np.around(dso/pctocm/kpc, 2)], [r'$d_{sl} \: (kpc)$', np.around(dsl/pctocm/kpc, 2)], [r'$a_x \: (AU)$', np.around(ax/autocm, 2)], [r'$a_y \: (AU)$', np.around(ay/autocm, 2)], [r'$DM_l \: (pc \, cm^{-3})$', dmlabel], [r"$\vec{u}'$", np.around(upvec, 2)]]
+    tablevals = [[r'$d_{so} \: (kpc)$', np.around(dso/pctocm/kpc, 2)], [r'$d_{sl} \: (kpc)$', np.around(dsl/pctocm/kpc, 2)], [r'$a_x \: (AU)$', np.around(ax/autocm, 2)], [r'$a_y \: (AU)$', np.around(ay/autocm, 2)], [r'$DM_l \: (pc \, cm^{-3})$', dmlabel], [r"$\vec{u}'$", np.around(upvec, 2)], [r'Sampling (MHz)', np.around(spacing/1e6, 3)], ['Ch. W. (MHz)', np.around(chw/1e6, 3)]]
     ax2.axis('tight')
     ax2.axis('off')
     # ax2.set_anchor('N')
-    table = ax2.table(cellText = tablevals, colWidths = [0.25, 0.25], colLabels = col_labels, loc = 'center')
+    table = ax2.table(cellText = tablevals, colWidths = [0.35, 0.25], colLabels = col_labels, loc = 'center')
     table.auto_set_font_size(False)
-    table.set_fontsize(12)
-    table.scale(3., 3.)
+    table.set_fontsize(11)
+    table.scale(2., 2.)
+    
+    grid.tight_layout(fig, h_pad = 2., pad = 2.)
     
     plt.show()
     return

@@ -3,6 +3,8 @@ from solvers import *
 from scipy.fftpack import fft2, ifft2, fftshift, fft, ifft
 from scipy.ndimage import map_coordinates
 
+path = '/home/gian/Documents/Research/NANOGrav/Lensing/Scripts/Simulation/KDI/'
+
 def gridToPixel(u, umax, gsize):
     return 0.5*gsize*(u/umax + 1.)
 
@@ -16,7 +18,7 @@ def geoPhase(ux, uy, uF2x, uF2y):
     arg = ux**2/(2*uF2x) + uy**2/(2*uF2y)
     return np.exp(1j*arg)
 
-def solveKDI(uxmax, uymax, dso, dsl, f, dm, ax, ay, gsizex, gsizey, m = 0 , n = 0):
+def solveKDI(uxmax, uymax, dso, dsl, f, dm, ax, ay, gsizex, gsizey, num, m = 0 , n = 0):
     
     rF2 = rFsqr(dso, dsl, f)
     uF2x, uF2y = rF2*np.array([1./ax**2, 1./ay**2])
@@ -39,11 +41,12 @@ def solveKDI(uxmax, uymax, dso, dsl, f, dm, ax, ay, gsizex, gsizey, m = 0 , n = 
     xx = np.linspace(gridToPixel(xmin, uxmax, gsizex/2), gridToPixel(xmax, uxmax, gsizex/2) - 1, gsizex)
     yy = np.linspace(gridToPixel(ymin, uymax, gsizey/2), gridToPixel(ymax, uymax, gsizey/2) - 1, gsizey)
 
-    ucross = polishedRoots(causticEqSlice, uxmax, uymax, args = (alp, m, n, ax, ay))
+    ucross = polishedRoots(causticEqSlice, uxmax, uymax, args = (alp, m, n, ax, ay), N = 1000)
     ncross = len(ucross)
     upcross = mapToUp(ucross.T, alp, ax, ay)
     p = np.argsort(upcross[0])
     upcross = upcross.T[p]
+    np.savetxt(path + 'upcross' + str(num) + '.dat', upcross)
     ucross = ucross[p]
     print(upcross)
 
@@ -61,6 +64,7 @@ def solveKDI(uxmax, uymax, dso, dsl, f, dm, ax, ay, gsizex, gsizey, m = 0 , n = 
     field = fftshift(ifft2(fieldfft))
     soln = np.abs((dux*duy*field)**2/(4*pi**2*uF2x*uF2y))
     soln = soln[int(0.25*gsizex):int(0.75*gsizex), int(0.25*gsizey):int(0.75*gsizey)]
+    np.savetxt(path + 'kdi' + str(num) + '.dat', soln)
 
     # Plots
     fig = plt.figure(figsize = (15, 10))
@@ -73,8 +77,9 @@ def solveKDI(uxmax, uymax, dso, dsl, f, dm, ax, ay, gsizex, gsizey, m = 0 , n = 
     ux, uy = np.meshgrid(rx, ry)
 
     rx2 = np.linspace(xmin, xmax, gsizex)
-    im0 = ax0.imshow(soln, origin = 'lower', extent = extent, aspect = 'auto', cmap = 'jet') # Plot entire screen
-    fig.colorbar(im0, ax = ax0)
+    im0 = ax0.imshow(soln, origin = 'lower', extent = extent, aspect = 'auto') # Plot entire screen
+    cbar = fig.colorbar(im0, ax = ax0)
+    cbar.set_label('G', fontsize = 16)
     ucaus = causCurve([ux, uy], lc*np.array([uF2x, uF2y]))
     cs = plt.contour(np.linspace(-uxmax, uxmax, gsizex), ry, ucaus, levels = [0, np.inf], linewidths = 0)
     paths = cs.collections[0].get_paths()
@@ -83,21 +88,24 @@ def solveKDI(uxmax, uymax, dso, dsl, f, dm, ax, ay, gsizex, gsizey, m = 0 , n = 
         cuvert = np.array(p.vertices).T
         upx, upy = mapToUp(cuvert, alp, ax, ay)
         ax0.plot(upx, upy, color = 'white') # Plot caustic curves
+        uppaths.append([upx, upy])
+    np.savez(path + 'caustics' + str(num) + '.npz', uppaths)
+        
     ax0.scatter(upcross.T[0], upcross.T[1], color = 'white')
     ax0.plot(rx2, rx2*m + n, color = 'white') # Plot observer motion
-    ax0.set_xlabel(r"$u'_x$")
-    ax0.set_ylabel(r"$u'_y$")
-    ax0.set_title("Gain in the u' plane")
+    ax0.set_xlabel(r"$u'_x$", fontsize = 16)
+    ax0.set_ylabel(r"$u'_y$", fontsize = 16)
+    # ax0.set_title("Gain in the u' plane")
 
     G = map_coordinates(soln.T, np.vstack((xx, yy))) # Plot gain along observer motion
     ax1.plot(rx2, G, color = 'blue')
-    # for caus in upcross.T[0]:
+    # for caus in np.unique(upcross.T[0]):
     #     ax1.plot([caus, caus], [-10, 1000], ls = 'dashed', color = 'black')
     ax1.set_ylim(-0.5, np.max(G) + 1.)
     ax1.set_xlim(np.min(rx2), np.max(rx2))
-    ax1.set_xlabel(r"$u'_x$")
-    ax1.set_ylabel('G')
-    ax1.set_title("Slice Gain")
+    ax1.set_xlabel(r"$u'_x$", fontsize = 16)
+    ax1.set_ylabel('G', fontsize = 16)
+    # ax1.set_title("Slice Gain")
     ax1.grid()
 
     col_labels = ['Parameter', 'Value'] # Create table with parameter values
