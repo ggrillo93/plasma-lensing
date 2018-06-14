@@ -12,8 +12,8 @@ dso, dsl, f, dm, ax, ay = 1.*kpc*pctocm, 0.5*kpc*pctocm, 0.8*GHz, -7e-4*pctocm, 
 # Test toapert.py
 # path = '/home/gian/Documents/Research/NANOGrav/Lensing/Scripts/Simulation/Templates/J1713+0747.Rcvr_800.GUPPI.9y.x.sum.sm'
 # template = pp.Archive(path).getData()
-fslicepert([0.1, 0.1], 0.3*GHz, 3.*GHz, dso, dsl,dm, ax, ay, 5e3, spacing = 1e5, plot = True, noise = 0.2, chw = 3e6)
-# pulsedynspec(dso, dsl, 0.3*GHz, 3.*GHz, dm, np.array([0.1, 0.1]), 5., ax, ay, template = None, spacing = 1e5, noise = 0.2, chw = 3e6)
+# fslicepert([0.1, 0.1], 0.3*GHz, 3.*GHz, dso, dsl,dm, ax, ay, 5e3, spacing = 5e4, plot = True, noise = 0.1, chw = 1.5e6)
+# pulsedynspec(dso, dsl, 0.3*GHz, 3.*GHz, dm, np.array([-0.5, 0.25]), 5., ax, ay, template = None, spacing = 5e4, noise = 0.2, chw = 0.5e6)
 
 # m, n = 0.5, 0.
 alp = alpha(dso, dsl, f, dm)
@@ -25,7 +25,7 @@ alp = alpha(dso, dsl, f, dm)
 # coeff = alp*np.array([1./ax**2, 1./ay**2])
 # polishedRoots(lensEq, 5., 5., args=([2., 2.], coeff), plot = True)
 # fsliceG([0.15, 0.15], 0.3*GHz, 3.*GHz, dso, dsl, dm, ax, ay, npoints=1000, plot=True)
-# fsliceGfull([0.1, 0.1], 5., 5., 0.3*GHz, 3.*GHz, dso, dsl, dm, ax, ay, 1., 0., comp=True, spacing = 5e4, chw = 0.5e6)
+fsliceGfull([0.1, 0.1], 5., 5., 0.3*GHz, 3.*GHz, dso, dsl, dm, ax, ay, 1., 0., comp=True, spacing = 5e4, chw = 1.5e6)
 # planeSliceTOA(3., 3., dso, dsl, f, dm, m, n, ax, ay, 1000)
 # upx = -2.
 # roots = findRoots(causEqFreq, 5., 5., args = (upx, ax, ay, 0.5, 0.5), plot = True, N = 1000)
@@ -33,7 +33,7 @@ alp = alpha(dso, dsl, f, dm)
 # freqcaustics = []
 # dlo = dso - dsl
 # coeff = dsl*dlo*re*dm/(2*pi*dso)
-# causCurveFreq(5., 5., ax, ay, dso, dsl, dm, 1., 0., N=200)
+# causCurveFreq(5., 5., ax, ay, dso, dsl, dm, 0.5, 0.5, N=200)
 
 # Test cases
 def runTests():

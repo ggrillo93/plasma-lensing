@@ -148,13 +148,16 @@ def fslicepert(upvec, fmin, fmax, dso, dsl, dm, ax, ay, period, template = None,
     # dspecav = np.abs(groupedAvg(dspec, N=wind))**2
     fvecav = groupedAvg(fvec, N=wind)/GHz
     nfptsav = len(fvecav)
-    noise = np.random.randn([nfpts, tsize])
-    dspecav = np.abs(groupedAvg(dspec, N=wind) + noise)**2
+    allnoise = noise*np.random.uniform(-1., 1., size = [nfptsav, tsize])
+    dspecav = np.abs(groupedAvg(dspec, N=wind) + allnoise)**2
     
     toapert = np.zeros(nfptsav)
+    toaerr = np.zeros(nfptsav)
     sqrtemp = template**2
     for i in range(nfptsav):
-        toapert[i] = tempmatch(dspecav[i], sqrtemp, dt)
+        fit = tempmatch(dspecav[i], sqrtemp, dt)
+        toapert[i] = fit[0]
+        toaerr[i] = fit[1]
     
     plt.close()
     
@@ -172,12 +175,14 @@ def fslicepert(upvec, fmin, fmax, dso, dsl, dm, ax, ay, period, template = None,
     if plot:
         fig = plt.figure(figsize = (12, 8), dpi = 100)
         # grid = gs.GridSpec(3, 2, width_ratios=[4, 1])
-        grid = gs.GridSpec(3, 1)
+        grid = gs.GridSpec(4, 1)
         ax1 = fig.add_subplot(grid[0, 0])
         ax2 = fig.add_subplot(grid[1, 0], sharex = ax1)
         ax3 = fig.add_subplot(grid[2, 0], sharex = ax1)
+        ax4 = fig.add_subplot(grid[3, 0], sharex = ax1)
         plt.setp(ax1.get_xticklabels(), visible = False)
         plt.setp(ax2.get_xticklabels(), visible = False)
+        plt.setp(ax3.get_xticklabels(), visible = False)
         # tableax2 = plt.subplot(grid[1:, 1])
         # tableax1 = plt.subplot(grid[0, 1])
         colors = assignColor(allroots, nreal)
@@ -194,16 +199,19 @@ def fslicepert(upvec, fmin, fmax, dso, dsl, dm, ax, ay, period, template = None,
         ax2.set_ylabel(r'$\Delta t_{j}$ ($\mu s$)', fontsize = 20)
         ax2.plot([-1, 10], [0, 0], ls='dashed', color='black')
         ax2.set_yscale('symlog')
-        axes = [ax1, ax2, ax3]
+        axes = [ax1, ax2, ax3, ax4]
         for i in range(len(fcross)):
             ax1.plot([fcross[i]/GHz, fcross[i]/GHz], [1e-9, 1e4], color = 'black', ls = ':', scaley = False, scalex = False)
-            for j in range(1, 3):
-                axes[j].plot([fcross[i]/GHz, fcross[i]/GHz], [-1000, 1000], color = 'black', ls = ':', scaley = False, scalex = False)
+            for j in range(1, 4):
+                axes[j].plot([fcross[i]/GHz, fcross[i]/GHz], [-1e5, 1e5], color = 'black', ls = ':', scaley = False, scalex = False)
         ax3.scatter(fvecav, toapert, color='black', s = 1.5)
         ax3.set_ylabel(r'$\Delta t_{tot}$ ($\mu s$)', fontsize = 20)
-        ax3.set_xlabel(r'$\nu$ (GHz)', fontsize = 20)
         ax3.plot([-1, 10], [0, 0], ls='dashed', color='black', marker = '.')
         ax3.set_ylim(np.min(toapert) - 1, np.max(toapert) + 1)
+        ax4.scatter(fvecav, toaerr, color = 'black', s = 1.5)
+        ax4.set_ylabel(r'$\Delta t_{err}$ ($\mu s$)', fontsize=20)
+        ax4.set_xlabel(r'$\nu$ (GHz)', fontsize=20)
+        ax3.plot([-1, 10], [0, 0], ls='dashed', color='black', marker='.')
         ax3.tick_params(labelsize = 16)
         ax2.tick_params(labelsize = 16)
         ax1.tick_params(labelsize = 16)

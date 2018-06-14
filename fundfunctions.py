@@ -64,6 +64,10 @@ def tg0coeff(dso, dsl):
 @jit(nopython=True)
 def tdm0coeff(dm, f):
     return c*re*dm/(2*pi*f**2)
+    
+def phi0(dso, dsl, f):
+    dlo = dso - dsl
+    return 2*pi*f*dsl*dlo/(dso*c)
 
 def mapToUp(uvec, alp, ax, ay):
     """ Maps points in the u-plane to points in the u'-plane. """
@@ -120,8 +124,9 @@ def groupedAvg(myArray, N=2):
     
 def tempmatch(data, template, dt):
     pulse = pp.SinglePulse(data)
-    shift = pulse.fitPulse(template)[1]
-    ans = shift*dt
+    fit = pulse.fitPulse(template)
+    print(fit)
+    ans = np.array([fit[1]*dt, fit[3]*dt])
     return ans
     
 def gaussian(t, fwhm, a, dt):

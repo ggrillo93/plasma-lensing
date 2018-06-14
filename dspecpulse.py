@@ -49,7 +49,7 @@ def pulsedynspec(dso, dsl, fmin, fmax, dm, upvec, period, ax, ay, template = Non
         lc = lensc(dm, fcross[i])
         sigs[i] = np.sign(ax**2/rF2 + lc*lensh(ucrossb[i][0], ucrossb[i][1])[0])
         
-    cdist = 1e5 # set minimum caustic distance
+    cdist = 1e4 # set minimum caustic distance
 
     # Set up boundaries
     bound = np.insert(fcross, 0, fmin)
@@ -96,7 +96,7 @@ def pulsedynspec(dso, dsl, fmin, fmax, dm, upvec, period, ax, ay, template = Non
             for j in range(nf):
                 fieldcomp = GOfield(roots[j].real[0], rF2[i][j], lc[i][j], ax, ay)
                 toa = deltat(roots[j].real[0], tg0, tdm0[i][j], alp[i][j], ax, ay)*1e-3
-                noisytemp = template + noise*np.random.randn(tsize)
+                noisytemp = template + noise*np.random.uniform(-1., 1., tsize)
                 orpulse = pp.SinglePulse(noisytemp)
                 shiftp = orpulse.shiftit(toa/dt)
                 dspec[count] = fieldcomp[0]*shiftp*np.exp(1j*(fieldcomp[1] + fieldcomp[2]))
@@ -126,7 +126,7 @@ def pulsedynspec(dso, dsl, fmin, fmax, dm, upvec, period, ax, ay, template = Non
                 for k in range(nptsreg):
                     tpulse = np.zeros(tsize, dtype = complex)
                     for l in range(nimreg):
-                        noisytemp = template + noise*np.random.randn(tsize)
+                        noisytemp = template + noise*np.random.uniform(-1., 1., tsize)
                         orpulse = pp.SinglePulse(noisytemp)
                         pulse = regfields[l][k]*orpulse.shiftit(regtoas[l][k]/dt)
                         tpulse = tpulse + pulse
@@ -155,7 +155,8 @@ def pulsedynspec(dso, dsl, fmin, fmax, dm, upvec, period, ax, ay, template = Non
     plt.setp(ax2.get_xticklabels(), visible = False)
     plt.setp(ax3.get_xticklabels(), visible = False)
     xlim = period/2.
-    spec = np.mean(template**2)
+    # spec = np.mean(template**2)
+    spec = 1
     
     # All
     avpulse = np.mean(dspecav, 0)
@@ -173,6 +174,8 @@ def pulsedynspec(dso, dsl, fmin, fmax, dm, upvec, period, ax, ay, template = Non
     ax02.xaxis.tick_top()
     ax02.xaxis.set_label_position('top')
     ax02.set_ylim([min(fvec), max(fvec)])
+    ax01.set_ylabel(r'$\overline{G(t)}$', fontsize = 12)
+    ax02.set_xlabel(r'$\overline{G(\nu)}$', fontsize = 12)
     plt.setp(ax01.get_xticklabels(), visible=False)
     plt.setp(ax02.get_yticklabels(), visible=False)
     ax0.yaxis.set_major_locator(MaxNLocator(nbins=len(ax0.get_yticklabels()), prune='upper'))
@@ -190,6 +193,7 @@ def pulsedynspec(dso, dsl, fmin, fmax, dm, upvec, period, ax, ay, template = Non
     ax1.tick_params(labelsize = 12)
     div1 = make_axes_locatable(ax1)
     ax11 = div1.append_axes("top", size = "20%", sharex = ax1)
+    ax11.set_ylabel(r'$\overline{G(t)}$', fontsize = 12)
     ax11.plot(taxis, avpulse1, color = 'black')
     ax11.plot([0, 0], [-1, 10], ls = 'dashed', color = 'blue', scalex = False, scaley = False)
     ax11.tick_params(labelsize = 12)
@@ -197,6 +201,7 @@ def pulsedynspec(dso, dsl, fmin, fmax, dm, upvec, period, ax, ay, template = Non
     ax12.plot(np.mean(dspec1, 1)/spec, fvecb1, color = 'black')
     ax12.xaxis.tick_top()
     ax12.xaxis.set_label_position('top')
+    ax12.set_xlabel(r'$\overline{G(\nu)}$', fontsize = 12)
     ax12.set_ylim([0.73, 0.91])
     plt.setp(ax11.get_xticklabels(), visible=False)
     plt.setp(ax12.get_yticklabels(), visible=False)
@@ -222,6 +227,8 @@ def pulsedynspec(dso, dsl, fmin, fmax, dm, upvec, period, ax, ay, template = Non
     ax22.xaxis.tick_top()
     ax22.xaxis.set_label_position('top')
     ax22.set_ylim([1.15, 1.88])
+    ax21.set_ylabel(r'$\overline{G(t)}$', fontsize=12)
+    ax22.set_xlabel(r'$\overline{G(\nu)}$', fontsize=12)
     plt.setp(ax21.get_xticklabels(), visible=False)
     plt.setp(ax22.get_yticklabels(), visible=False)
     ax2.yaxis.set_major_locator(MaxNLocator(nbins = len(ax2.get_yticklabels()), prune = 'upper'))
@@ -246,6 +253,8 @@ def pulsedynspec(dso, dsl, fmin, fmax, dm, upvec, period, ax, ay, template = Non
     ax32.xaxis.tick_top()
     ax32.xaxis.set_label_position('top')
     ax32.set_ylim([2.05, 2.4])
+    ax31.set_ylabel(r'$\overline{G(t)}$', fontsize=12)
+    ax32.set_xlabel(r'$\overline{G(\nu)}$', fontsize=12)
     plt.setp(ax31.get_xticklabels(), visible=False)
     plt.setp(ax32.get_yticklabels(), visible=False)
     ax3.yaxis.set_major_locator(MaxNLocator(nbins = len(ax3.get_yticklabels()), prune = 'upper'))
@@ -259,10 +268,10 @@ def pulsedynspec(dso, dsl, fmin, fmax, dm, upvec, period, ax, ay, template = Non
     plt.setp(sideticks(ax22), visible = False)
     plt.setp(sideticks(ax32), visible = False)
     
-    toapert0 = tempmatch(avpulse, template**2, dt)*1e3
-    toapert1 = tempmatch(avpulse1, template**2, dt)*1e3
-    toapert2 = tempmatch(avpulse2, template**2, dt)*1e3
-    toapert3 = tempmatch(avpulse3, template**2, dt)*1e3
+    toapert0 = tempmatch(avpulse, template**2, dt)[0]*1e3
+    toapert1 = tempmatch(avpulse1, template**2, dt)[0]*1e3
+    toapert2 = tempmatch(avpulse2, template**2, dt)[0]*1e3
+    toapert3 = tempmatch(avpulse3, template**2, dt)[0]*1e3
     
     ax4.axis('off')
     ax4.axis('tight')
