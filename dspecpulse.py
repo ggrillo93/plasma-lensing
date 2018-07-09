@@ -4,6 +4,8 @@ from observables import *
 from scipy import ndimage as ndim
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.ticker import MaxNLocator
+from scipy.signal import *
+from scipy.fftpack import *
 
 def pulsedynspec(dso, dsl, fmin, fmax, dm, upvec, period, ax, ay, template = None, spacing = 1e5, noise = 0.2, tsize = 2048, chw = 1.5e6):
     
@@ -306,3 +308,96 @@ def sideticks(ax):
         return ticks[:-2]
     else:
         return ticks[:-1]
+
+def pulsedynspecB(dso, dsl, fmin, fmax, dm, upvec, T, ax, ay, fc, nch, bw, spacing, noise = 0.1):
+    
+    nsam = findN(bw, nch, T)
+    taxis = np.linspace(-T/2., T/2., nsam)
+    template = gauss(t, T/10., 1., 0.)
+    # std = 0.1
+    # poisson = np.random.poisson(lam = std**2*np.ones(nsam), size = None)
+    # shotnoise = poisson - np.mean(poisson)
+    # pulse = template*shotnoise + noise*np.random.randn(nsam)
+    pulse = 0.25*template*np.random.randn(nsam) + 0.1*np.random.randn(nsam)
+    hetpulse = pulse*np.exp(1j*2*pi*t*fc)
+    ft = fft(hetpulse)
+    freq = fftshift(fftfreq(nsam, d = T/nsam))
+    # splft = np.split(ft, nch)
+    # freqs = np.split(freq + fc, nch)
+    # cfreq = np.mean(freqs, axis = 1)
+    
+    # Calculate coefficients
+    fcoeff = dsl*(dso - dsl)*re*dm/(2*pi*dso)
+    alpp = alpha(dso, dsl, 1., dm)
+    coeff = alpp*np.array([1./ax**2, 1./ay**2])
+    rF2p = rFsqr(dso, dsl, 1.)
+    lcp = lensc(dm, 1.)
+    tg0 = tg0coeff(dso, dsl)
+    tdm0p = tdm0coeff(dm, 1.)
+
+    # Find frequency caustics
+    upx, upy = upvec
+    ucross = polishedRoots(causEqFreq, np.abs(upx) + 3., np.abs(upy) + 3., args = (upx, ax, ay, upy/upx, 0))
+    fcross = []
+    ucrossb = []
+    for uvec in ucross:
+        ux, uy = uvec
+        arg = fcoeff*lensg(ux, uy)[0]/(ux - upx)
+        if arg > 0:
+            freq = c*np.sqrt(arg)/ax
+            if fmin < freq < fmax:
+                fcross.append(freq)
+                ucrossb.append([ux, uy])
+    fcross = np.asarray(fcross)
+    p = np.argsort(fcross)
+    fcross = fcross[p]
+    ucrossb = np.asarray(ucrossb)[p]
+    ncross = len(fcross)
+    print(fcross/GHz)
+        
+    cdist = 1e4 # set minimum caustic distance
+
+    # Create segments
+    bound = np.insert(fcross, 0, fmin)
+    bound = np.append(bound, fmax)
+    midpoints = [(bound[i] + bound[i+1])/2. for i in range(len(bound) - 1)] # find middle point between boundaries
+    nzones = len(midpoints)
+    nreal = np.zeros(nzones, dtype = int)
+    for i in range(nzones):
+        mpoint = midpoints[i]
+        leqcoeff = coeff/mpoint**2
+        nreal[i] = int(len(findRoots(lensEq, np.abs(upx) + 3., np.abs(upy) + 3., args = (upvec, leqcoeff), N = 1000)))
+    segs = np.array([np.arange(bound[i-1] + cdist, bound[i] - cdist, spacing) for i in range(1, ncross + 2)])
+    
+    # Calculate coefficient for each frequency
+    alp = alpp/cfreq**2
+    rF2 = rF2p/cfreq
+    lc = lcp/cfreq
+    
+    ncomplex = np.zeros(nzones) # only real rays (for now)
+    
+    allroots = rootFinderFreq(segs, nreal, ncomplex, ucrossb, upvec, coeff)
+    nfpts = [len(seg) for seg in segs]
+    
+    # Calculate fields
+    allfields = []
+    for l in range(nzones):
+        nroots = len(allroots[l][0])
+        fvec = segs[l]
+        roots = allroots[l]
+        npoints = len(fvec)
+        fields = np.zeros([nroots, 2, npoints])
+        for i in range(npoints):
+            for j in range(nroots):
+                ans = GOfield2(roots[i][j], rF2[i][j], lc[i][j], ax, ay)
+                for k in range(2):
+                    fields[j][k][i] = ans[k]
+        allfields.append(fields)
+    
+
+def findN(bw, nch, T):
+    N0 = bw*T
+    if N0 % (2048*nch) == 0:
+        return N0
+    else:
+        return int(np.ceil(N0/(2048*nch))*nch*2048)

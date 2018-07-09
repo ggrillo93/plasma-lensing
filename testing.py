@@ -25,7 +25,7 @@ alp = alpha(dso, dsl, f, dm)
 # coeff = alp*np.array([1./ax**2, 1./ay**2])
 # polishedRoots(lensEq, 5., 5., args=([2., 2.], coeff), plot = True)
 # fsliceG([0.15, 0.15], 0.3*GHz, 3.*GHz, dso, dsl, dm, ax, ay, npoints=1000, plot=True)
-fsliceGfull([0.1, 0.1], 5., 5., 0.3*GHz, 3.*GHz, dso, dsl, dm, ax, ay, 1., 0., comp=True, spacing = 5e4, chw = 1.5e6)
+fsliceGfull([0.1, 0.1], 5., 5., 0.3*GHz, 3.*GHz, dso, dsl, dm, ax, ay, 1., 0., comp=True, spacing = 1.5e6, chw = 1.5e6)
 # planeSliceTOA(3., 3., dso, dsl, f, dm, m, n, ax, ay, 1000)
 # upx = -2.
 # roots = findRoots(causEqFreq, 5., 5., args = (upx, ax, ay, 0.5, 0.5), plot = True, N = 1000)

@@ -2,14 +2,14 @@ from fundfunctions import *
 from scipy.special import gamma as gfunc
 
 # Phase
-def phi(uvec, rF2, phi0, lc, ax, ay):
+def phi(uvec, rF2, lc, ax, ay):
     """ Returns the phase at a stationary point. """
     ux, uy = uvec
     grad = lensg(ux, uy)
-    return 0.5*rF2*lc**2*((grad[0]/ax)**2 + (grad[1]/ay)**2) + lc*lensfun(*uvec) + phi0 - 0.5*pi
+    return 0.5*rF2*lc**2*((grad[0]/ax)**2 + (grad[1]/ay)**2) + lc*lensfun(*uvec)
 
 # Field
-def GOfield(uvec, rF2, phi0, lc, ax, ay):
+def GOfield(uvec, rF2, lc, ax, ay):
     """ Returns the elements of the geometrical optics field: the amplitude and the phase, including the phase shift as determined by the sign of the derivatives. """
     ux, uy = uvec
     alp = rF2*lc
@@ -20,11 +20,28 @@ def GOfield(uvec, rF2, phi0, lc, ax, ay):
     sigma = np.sign(phi02)
     H = phi20*phi02 - phi11**2
     delta = np.sign(H)
-    amp = (ax*ay/rF2)*np.abs(H)**-0.5
-    phase = phi(uvec, rF2, phi0, lc, ax, ay)
+    amp = (-1j*ax*ay/rF2)*np.abs(H)**-0.5
+    phase = phi(uvec, rF2, lc, ax, ay)
     pshift = pi*(delta + 1)*sigma*0.25
     # return amp*np.exp(1j*(phase + pshift))
     return np.array([amp, phase, pshift])
+    
+def GOfield2(uvec, rF2, lc, ax, ay):
+    """ Returns the elements of the geometrical optics field: the amplitude and the phase, including the phase shift as determined by the sign of the derivatives. """
+    ux, uy = uvec
+    alp = rF2*lc
+    psi20, psi02, psi11 = lensh(ux, uy)
+    phi20 = ax**2/rF2 + lc*psi20
+    phi02 = ay**2/rF2 + lc*psi02
+    phi11 = lc*psi11
+    sigma = np.sign(phi02)
+    H = phi20*phi02 - phi11**2
+    delta = np.sign(H)
+    amp = (-1j*ax*ay/rF2)*np.abs(H)**-0.5
+    phase = phi(uvec, rF2, lc, ax, ay)
+    pshift = pi*(delta + 1)*sigma*0.25
+    # return amp*np.exp(1j*(phase + pshift))
+    return np.array([amp, phase + pshift])
 
 # Amplitudes
 def GOAmp(uvec, rF2, lc, ax, ay):
@@ -61,9 +78,8 @@ def deltat(uvec, tg0, tdm0, alp, ax, ay):
     return 1e6*(tg0*alp**2*((grad[0]/ax)**2 + (grad[1]/ay)**2) + tdm0*lensfun(ux, uy))
     
 # Field construction and helper functions
-
 def constructField(amp, phases, pshift):
-    return amp*np.exp(1j*(phases + pshift))
+    return amp*np.exp(1j*(phases+pshift))
     
 def difference(arr):
     diff = np.ones(len(arr))
@@ -80,7 +96,14 @@ def findClosest(roots):
     dist = squareform(dist)
     ij_min = np.where(dist == mdist)
     return [ij_min[0], mdist]
-
+    
+def findMinPhi(phis):
+    """ Returns the minimum phase difference of a set of roots and the indices of the roots with minimum difference. """
+    diffmat = np.abs(np.subtract.outer(a + pi/2., a))
+    ind = np.tril_indices(diffmat.shape[0], k=-1)
+    minind = np.asarray(ind).T[np.argmin(diffmat[ind])]
+    mindiff = np.min(diffmat[ind])
+    return [minind, mindiff]
 
 def obsCalcFreq(func, roots, nroots, npoints, ansdim, fvec, args=()):
     """ Calculates observable using observable function func for a list of roots of arbitrary dimensionality. Returns multidimensional array with shape [nroots, ansdim, npoints]. """
@@ -129,9 +152,6 @@ def uniAsymp(allroots, allfields, nreal, ncomplex, nzones, sigs):
             pdiff = phi2 - phi1
             g1 = A1 - A2
         chi = 0.5*(phi1 + phi2)
-        print(phi1)
-        print(phi2)
-        phase = chi + sig*0.25*pi
         xi = -(0.75*pdiff)**(2./3.)
         air = airy(xi)
         a1 = pi**0.5 *((A1 + A2)*(-xi)**0.25*air[0] - 1j*g1*(-xi)**-0.25*air[1]) * np.exp(1j*(chi + sig*0.25*pi))
@@ -151,7 +171,7 @@ def uniAsymp(allroots, allfields, nreal, ncomplex, nzones, sigs):
         npoints = len(roots)
         realn = int(nreal[i])
         if nreal[i] == 1: # no real roots merge
-            areal = constructField(*fields[0])
+            areal = constructField(fields[0][0], fields[0][1], fields[0][2])
         else: # deal with merging real roots
             merge = [findClosest(roots[0][:realn].real), findClosest(roots[-1][:realn].real)] # find closest real roots at each end
             mroot1, mroot2 = merge[0][0], merge[1][0] # set indices of merging roots
@@ -165,7 +185,7 @@ def uniAsymp(allroots, allfields, nreal, ncomplex, nzones, sigs):
                     amerge = bright(A1, A2, phi1, phi2, sigs[p])
                     anonm = np.zeros(npoints, dtype = complex)
                     for index in nmroots1:
-                        anonm = anonm + constructField(*fields[index]) # sum of fields not involved in merging
+                        anonm = anonm + constructField(fields[index][0], fields[index][1], fields[index][2]) # sum of fields not involved in merging
                     areal = amerge + anonm
                 else: # different roots merge at each end
                     A11, A21 = np.array_split(fields[mroot1[0]][0], 2)[0], np.array_split(fields[mroot1[1]][0], 2)[0]
@@ -190,7 +210,7 @@ def uniAsymp(allroots, allfields, nreal, ncomplex, nzones, sigs):
                 amerge = bright(A1, A2, phi1, phi2, sigs[p])
                 anonm = np.zeros(npoints, dtype = complex)
                 for index in nmroots1:
-                    anonm = anonm + constructField(*fields[index]) # sum of fields not involved in merging
+                    anonm = anonm + constructField(fields[index][0], fields[index][1], fields[index][2]) # sum of fields not involved in merging
                 areal = amerge + anonm
             elif merge[0][1] > 0.4 and merge[1][1] < 0.4: # case 3: real root merging at second end only
                 # print('Root merging at second end')
@@ -199,7 +219,7 @@ def uniAsymp(allroots, allfields, nreal, ncomplex, nzones, sigs):
                 amerge = bright(A1, A2, phi1, phi2, sigs[p+1])
                 anonm = np.zeros(npoints, dtype = complex)
                 for index in nmroots2:
-                    anonm = anonm + constructField(*fields[index]) # sum of fields not involved in merging
+                    anonm = anonm + constructField(fields[index][0], fields[index][1], fields[index][2]) # sum of fields not involved in merging
                 areal = amerge + anonm
         if ncomplex[i] != 0: # deal with merging complex roots
             A, phi = fields[realn][:2]
@@ -219,6 +239,156 @@ def uniAsymp(allroots, allfields, nreal, ncomplex, nzones, sigs):
             acomp = np.zeros(npoints)
         asymp = np.append(asymp, areal + acomp)
     return np.asarray(asymp).flatten()
+    
+def uniAsymp2(allfields, segs, nreal, ncomplex):
+    """ Constructs the uniform asympotics for a segmented array of roots and their respective fields. """
+    
+    def bright(A1, A2, phi1, phi2):
+        if phi1[0] + pi/2. > phi2[0]:
+            pdiff = phi1 - phi2 + pi/2.
+            g1 = A2 - A1
+        else:
+            pdiff = phi2 - phi1 + pi/2.
+            g1 = A1 - A2
+        chi = 0.5*(phi1 + phi2)
+        xi = -(0.75*pdiff)**(2./3.)
+        air = airy(xi)
+        amp = pi**0.5 *((A1 + A2)*(-xi)**0.25*air[0] - 1j*g1*(-xi)**-0.25*air[1])
+        return np.array([amp, chi])
+        
+    def dark(A, phi):
+        xi = (1.5*np.abs(phi.imag))**(2./3.)
+        a1 = 2*pi**0.5*A*(xi)**0.25 * airy(xi)[0]
+        return np.array([a1, phi.real])
+    
+    nzones = len(segs)
+    asymp = list(np.zeros(nzones))
+    
+    for i in range(nzones):
+        roots, fields = allroots[i], allfields[i]
+        nroots = (ncomplex + nreal)[i]
+        npoints = len(roots)
+        realn = int(nreal[i])
+        seg = segs[i]
+        zone = []
+        if nreal[i] == 1: # no real roots merge
+            ampfunc = interp1d(seg, fields[0][0])
+            phifunc = interp1d(seg, fields[1][1])
+            zone.append([ampfunc, phifunc])
+        else: # deal with merging real roots
+            merge = findMinPhi(fields.T[-1][1]) # find closest real roots at each end
+            mroot1, mroot2 = merge[0][0], merge[1][0] # set indices of merging roots
+            nmroots1 = list(set(range(realn)) - set(mroot1)) # indices of non merging roots at one end
+            nmroots2 = list(set(range(realn)) - set(mroot2)) # indices of non merging roots at other end
+            if merge[0][1] < pi and merge[1][1] < pi: # case 1: real root merging at both ends
+                if np.all(mroot1 == mroot2): # same root merges at both ends
+                    A1, phi1 = fields[mroot1[0]]
+                    A2, phi2 = fields[mroot1[1]]
+                    bamp, bphi = bright(A1, A2, phi1, phi2))
+                    ampfunc = interp1d(seg, bamp)
+                    phifunc = interp1d(seg, bphi)
+                    zone.append([ampfunc, phifunc])
+                    for index in nmroots1:
+                        ampfunc = interp1d(seg, fields[index][0])
+                        phifunc = interp1d(seg, fields[index][1])
+                        zone.append([ampfunc, phifunc])
+                else: # different roots merge at each end
+                    same = np.intersect1d(mroot1, mroot2)
+                    if len(same) == 0:
+                        A11, A12 = np.array_split(fields[mroot1[0]][0], 2)
+                        A21, A22 = np.array_split(fields[mroot1[1]][0], 2)
+                        A31, A32 = np.array_split(fields[mroot2[0]][0], 2)
+                        A41, A42 = np.array_split(fields[mroot2[1]][0], 2)
+                        phi11, phi12 = np.array_split(fields[mroot1[0]][1], 2)
+                        phi21, phi22 = np.array_split(fields[mroot1[1]][1], 2)
+                        phi31, phi32 = np.array_split(fields[mroot2[0]][1], 2)
+                        phi41, phi42 = np.array_split(fields[mroot2[1]][1], 2)
+                        bamp1, bphi1 = bright(A11, A21, phi11, phi21)
+                        bamp2, bphi2 = bright(A32, A42, phi32, phi42)
+                        bamp = np.concatenate((bamp1, bamp2))
+                        bphi = np.concatenate((bphi1, bphi2))
+                        bampfunc = interp1d(seg, bamp)
+                        bphifunc = interp1d(seg, bphi)
+                        zone.append([bampfunc, bphifunc])
+                        nmamp1 = np.concatenate((A31, A12))
+                        nmamp2 = np.concatenate((A41, A22))
+                        nmphi1 = np.concatenate((phi31, phi12))
+                        nmphi2 = np.concatenate((phi41, phi22))
+                        nmamp1func = interp1d(seg, nmamp1)
+                        nmphi1func = interp1d(seg, nmphi1)
+                        nmamp2func = interp1d(seg, nmamp2)
+                        nmphi2func = interp1d(seg, nmphi2)
+                        zone.append([nmamp1func, nmphi1func])
+                        zone.append([nmamp2func, nmphi2func])
+                        nmroots = np.intersect1d(nmroots1, nmroots2)
+                        for index in nmroots:
+                            ampfunc = interp1d(seg, fields[index][0])
+                            phifunc = interp1d(seg, fields[index][1])
+                            zone.append([ampfunc, phifunc])
+                    else:
+                        A21, A22 = np.array_split(fields[same[0]][0], 2)
+                        phi21, phi22 = np.array_split(fields[same[0]][1], 2)
+                        left = np.nonzero(mroot1 - same[0])[0][0]
+                        A11, A12 = np.array_split(fields[mroot1[left]][0], 2)
+                        phi11, phi12 = np.array_split(fields[mroot1[left]][1], 2)
+                        right = np.nonzero(mroot2 - same[0])[0][0]
+                        A31, A32 = np.array_split(fields[mroot2[right]][0], 2)
+                        phi31, phi32 = np.array_split(fields[mroot2[right]][1], 2)
+                        bamp1, bphi1 = bright(A11, A21, phi11, phi21)
+                        bamp2, bphi2 = bright(A22, A32, phi22, phi32)
+                        bamp = np.concatenate((bamp1, bamp2))
+                        bphi = np.concatenate((bphi1, bphi2))
+                        bampfunc = interp1d(seg, bamp)
+                        bphifunc = interp1d(seg, bphi)
+                        zone.append([bampfunc, bphifunc])
+                        nmamp = np.concatenate((A31, A12))
+                        nmphi = np.concatenate((phi31, phi12))
+                        nmampfunc = interp1d(seg, nmamp)
+                        nmphifunc = interp1d(seg, nmphi)
+                        zone.append([nmamp, nmphi])
+                        nmroots = np.intersect1d(nmroots1, nmroots2)
+                        for index in nmroots:
+                            ampfunc = interp1d(seg, fields[index][0])
+                            phifunc = interp1d(seg, fields[index][1])
+                            zone.append([ampfunc, phifunc])
+            elif merge[0][1] < pi and merge[1][1] > pi: # case 2: real root merging at first end only
+                A1, phi1 = fields[mroot1[0]]
+                A2, phi2 = fields[mroot1[1]]
+                bamp, bphi = bright(A1, A2, phi1, phi2)
+                bampfunc = interp1d(seg, bamp)
+                bphifunc = interp1d(seg, bphi)
+                zone.append([bampfunc, bphifunc])
+                for index in nmroots1:
+                    ampfunc = interp1d(seg, fields[index][0])
+                    phifunc = interp1d(seg, fields[index][1])
+                    zone.append([ampfunc, phifunc])
+            elif merge[0][1] > pi and merge[1][1] < pi: # case 3: real root merging at second end only
+                A1, phi1 = fields[mroot2[0]]
+                A2, phi2 = fields[mroot2[1]]
+                bamp, bphi = bright(A1, A2, phi1, phi2)
+                bampfunc = interp1d(seg, bamp)
+                bphifunc = interp1d(seg, bphi)
+                zone.append([bampfunc, bphifunc])
+                for index in nmroots1:
+                    ampfunc = interp1d(seg, fields[index][0])
+                    phifunc = interp1d(seg, fields[index][1])
+                    zone.append([ampfunc, phifunc])
+        if ncomplex[i] != 0: # deal with merging complex roots
+            A, phi = fields[realn]
+            cond = np.abs(roots[0][realn][0].imag/roots[0][realn][0].real) < np.abs(roots[-1][realn][0].imag/roots[-1][realn][0].real)
+            if cond: # complex root merges at first end
+                camp, cphi = dark(A, phi)
+                campfunc = interp1d(seg, camp)
+                cphifunc = interp1d(seg, cphi)
+                zone.append([campfunc, cphifunc])
+            if ncomplex[i] == 2 and np.around(fields[realn][0][0], 3) != np.around(fields[realn + 1][0][0], 3):
+                A2, phi2 = fields[realn + 1]
+                camp2, cphi2 = dark(A2, phi2)
+                campfunc = interp1d(seg, camp2)
+                cphifunc = interp1d(seg, cphi2)
+                zone.append([campfunc, cphifunc])
+        asymp[i] = zone
+    return asymp
     
 def uniAsympTOA(roots, fields, toas, realn, npoints, sig):
     """ Constructs the uniform asympotics. """
@@ -341,7 +511,7 @@ def uniAsympTOA(roots, fields, toas, realn, npoints, sig):
             intoas[i] = toas[i][:-h]
             
         return np.array([[infields, bfields], [intoas, btoas]])
-
+    
 # Momentarily useless stuff
 
 # # @jit(nopython=True)

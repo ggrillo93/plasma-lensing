@@ -65,7 +65,7 @@ def tg0coeff(dso, dsl):
 def tdm0coeff(dm, f):
     return c*re*dm/(2*pi*f**2)
     
-def phi0(dso, dsl, f):
+def phi0func(dso, dsl, f):
     dlo = dso - dsl
     return 2*pi*f*dsl*dlo/(dso*c)
 
