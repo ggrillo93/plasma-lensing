@@ -243,8 +243,10 @@ def uniAsymp(allfields, segs, nreal, ncomplex):
         if ncomplex[i] != 0: # deal with merging complex roots
             A, phi = fields[realn]
             camp, cphi = dark(A, phi)
+            print([camp, cphi])
             campfunc = interp1d(seg, camp)
             cphifunc = interp1d(seg, cphi)
+            print([campfunc(seg), cphifunc(seg)])
             zone.append([campfunc, cphifunc])
             if ncomplex[i] == 2:
                 A2, phi2 = fields[realn + 1]

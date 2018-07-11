@@ -32,7 +32,7 @@ def fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, spacing = 1e5, sampling = 1
     ncross = len(fcross)
     print(fcross/GHz)
         
-    cdist = 5e6
+    cdist = 1e4
 
     # Set up boundaries
     bound = np.insert(fcross, 0, fmin)
@@ -112,6 +112,7 @@ def fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, spacing = 1e5, sampling = 1
         for root in asympfuncs[i]:
             amp = root[0](fvec)
             phase = root[1](fvec)
+            print(am)
             zonefield = zonefield + amp*np.exp(1j*phase)
         zoneG = np.abs(zonefield)**2
         asymG = np.append(asymG, zoneG)
