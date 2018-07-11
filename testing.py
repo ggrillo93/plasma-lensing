@@ -5,7 +5,7 @@ from dspectra import *
 from toapertopt import *
 from dspecpulse import *
 
-dso, dsl, f, dm, ax, ay = 1.*kpc*pctocm, 0.5*kpc*pctocm, 0.8*GHz, -7e-4*pctocm, 0.5*autocm, 1.1*autocm
+dso, dsl, f, dm, ax, ay = 1.1*kpc*pctocm, 0.55*kpc*pctocm, 0.8*GHz, -1e-5*pctocm, 0.04*autocm, 0.05*autocm
 
 # fsliceGfull([-4.90282938,  0.04858531], 5., 5., 0.1*GHz, 1.5*GHz, dso, dsl, dm, ax, ay, 0.5, 2.5, N=200, npoints=3500, comp=True)
 
@@ -24,8 +24,8 @@ alp = alpha(dso, dsl, f, dm)
 # dspectra(0.1*GHz, 4.*GHz, 5., 5., dso, dsl, dm, ax, ay, 1., 3.)
 # coeff = alp*np.array([1./ax**2, 1./ay**2])
 # polishedRoots(lensEq, 5., 5., args=([2., 2.], coeff), plot = True)
-# fsliceG([0.15, 0.15], 0.3*GHz, 3.*GHz, dso, dsl, dm, ax, ay, npoints=1000, plot=True)
-fsliceGfull([0.1, 0.1], 5., 5., 0.3*GHz, 3.*GHz, dso, dsl, dm, ax, ay, 1., 0., comp=True, spacing = 5e4, chw = 1.5e6)
+fsliceG([0.2, 0.2], 0.2*GHz, 2.*GHz, dso, dsl, dm, ax, ay, plot=True)
+# fsliceGfull([0.1, 0.1], 5., 5., 0.3*GHz, 3.*GHz, dso, dsl, dm, ax, ay, 1., 0., comp=True, spacing = 5e4, chw = 1.5e6)
 # planeSliceTOA(3., 3., dso, dsl, f, dm, m, n, ax, ay, 1000)
 # upx = -2.
 # roots = findRoots(causEqFreq, 5., 5., args = (upx, ax, ay, 0.5, 0.5), plot = True, N = 1000)

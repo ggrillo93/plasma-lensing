@@ -2,14 +2,14 @@ from fundfunctions import *
 from scipy.special import gamma as gfunc
 
 # Phase
-def phi(uvec, rF2, phi0, lc, ax, ay):
+def phi(uvec, rF2, lc, ax, ay):
     """ Returns the phase at a stationary point. """
     ux, uy = uvec
     grad = lensg(ux, uy)
-    return 0.5*rF2*lc**2*((grad[0]/ax)**2 + (grad[1]/ay)**2) + lc*lensfun(*uvec) + phi0 - 0.5*pi
+    return 0.5*rF2*lc**2*((grad[0]/ax)**2 + (grad[1]/ay)**2) + lc*lensfun(*uvec) - 0.5*pi
 
 # Field
-def GOfield(uvec, rF2, phi0, lc, ax, ay):
+def GOfield(uvec, rF2, lc, ax, ay):
     """ Returns the elements of the geometrical optics field: the amplitude and the phase, including the phase shift as determined by the sign of the derivatives. """
     ux, uy = uvec
     alp = rF2*lc
@@ -21,7 +21,7 @@ def GOfield(uvec, rF2, phi0, lc, ax, ay):
     H = phi20*phi02 - phi11**2
     delta = np.sign(H)
     amp = (ax*ay/rF2)*np.abs(H)**-0.5
-    phase = phi(uvec, rF2, phi0, lc, ax, ay)
+    phase = phi(uvec, rF2, lc, ax, ay)
     pshift = pi*(delta + 1)*sigma*0.25
     # return amp*np.exp(1j*(phase + pshift))
     return np.array([amp, phase, pshift])
@@ -129,9 +129,6 @@ def uniAsymp(allroots, allfields, nreal, ncomplex, nzones, sigs):
             pdiff = phi2 - phi1
             g1 = A1 - A2
         chi = 0.5*(phi1 + phi2)
-        print(phi1)
-        print(phi2)
-        phase = chi + sig*0.25*pi
         xi = -(0.75*pdiff)**(2./3.)
         air = airy(xi)
         a1 = pi**0.5 *((A1 + A2)*(-xi)**0.25*air[0] - 1j*g1*(-xi)**-0.25*air[1]) * np.exp(1j*(chi + sig*0.25*pi))

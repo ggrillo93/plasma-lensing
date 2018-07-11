@@ -3,7 +3,7 @@ from observables import *
 from solvers import *
 from upslice import *
 
-def fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, spacing = 1e5, chw = 1.5e6, comp = True, plot = False):
+def fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, spacing = 1e5, chw = 1e5, comp = True, plot = False):
     
     # Calculate coefficients
     fcoeff = dsl*(dso - dsl)*re*dm/(2*pi*dso)
@@ -11,7 +11,6 @@ def fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, spacing = 1e5, chw = 1.5e6,
     coeff = alpp*np.array([1./ax**2, 1./ay**2])
     rF2p = rFsqr(dso, dsl, 1.)
     lcp = lensc(dm, 1.)
-    ph0p = phi0(dso, dsl, 1.)
     
     upx, upy = upvec
     ucross = polishedRoots(causEqFreq, np.abs(upx) + 3., np.abs(upy) + 3., args = (upx, ax, ay, upy/upx, 0))
@@ -85,9 +84,8 @@ def fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, spacing = 1e5, chw = 1.5e6,
             freq = fvec[i]
             rF2 = rF2p/freq
             lc = lcp/freq
-            ph0 = ph0p*freq
             for j in range(nroots):
-                ans = GOfield(roots[i][j], rF2, ph0, lc, ax, ay)
+                ans = GOfield(roots[i][j], rF2, lc, ax, ay)
                 for k in range(3):
                     fields[j][k][i] = ans[k]
         # print(fields.shape)
@@ -110,7 +108,6 @@ def fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, spacing = 1e5, chw = 1.5e6,
         roots = allroots[l]
         nroots = int(nreal[l])
         npoints = len(fvec)
-        print(nroots)
         gains = np.zeros(npoints)
         for i in range(npoints):
             freq = fvec[i]

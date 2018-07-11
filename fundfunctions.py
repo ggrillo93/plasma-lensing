@@ -64,10 +64,6 @@ def tg0coeff(dso, dsl):
 @jit(nopython=True)
 def tdm0coeff(dm, f):
     return c*re*dm/(2*pi*f**2)
-    
-def phi0(dso, dsl, f):
-    dlo = dso - dsl
-    return 2*pi*f*dsl*dlo/(dso*c)
 
 def mapToUp(uvec, alp, ax, ay):
     """ Maps points in the u-plane to points in the u'-plane. """
