@@ -37,8 +37,6 @@ lensg = sym.lambdify([u_x, u_y], lensg, "numpy")
 lensh = sym.lambdify([u_x, u_y], lensh, "numpy")
 lensgh = sym.lambdify([u_x, u_y], lensgh, "numpy")
 
-airsqrenv = interp1d(ai_zeros(100)[1], airy(ai_zeros(100)[1])[0]**2/2., kind = 'cubic', fill_value = 'extrapolate')
-
 @jit(nopython=True)
 def alpha(dso, dsl, f, dm):
     """ Returns alpha coefficient. """
@@ -64,10 +62,6 @@ def tg0coeff(dso, dsl):
 @jit(nopython=True)
 def tdm0coeff(dm, f):
     return c*re*dm/(2*pi*f**2)
-    
-def phi0func(dso, dsl, f):
-    dlo = dso - dsl
-    return 2*pi*f*dsl*dlo/(dso*c)
 
 def mapToUp(uvec, alp, ax, ay):
     """ Maps points in the u-plane to points in the u'-plane. """

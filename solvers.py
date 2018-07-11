@@ -305,16 +305,20 @@ def checkRoot(func, soln, args = ()):
 
 # Root finding along a set of coordinates
 
-def rootFinder(segs, nreal, ncomplex, npoints, ucross, uxmax, uymax, coeff):
+def rootFinder(segs, nreal, ncomplex, ucross, uxmax, uymax, coeff):
     """ Solves the lens equation for every pair of points in the u'-plane contained in upvec, given expected number of real and complex solutions. """
     
     def findFirstComp(ucross, uppoint):
         imguess = np.linspace(-1, 1, 200)
         for guess in imguess:
             croot = op.root(compLensEq, [ucross[0], guess, ucross[1], guess], args=(uppoint, coeff))
-            # print(croot)
             # check that the root finder finds the correct complex ray
-            if croot.success and np.abs(croot.x[1]) > 1e-6*np.abs(croot.x[0]) and np.abs(croot.x[0] - ucross[0]) < 0.1 and np.abs(croot.x[1]/croot.x[0]) < 0.1:
+            cond1 = croot.success
+            cond2 = np.abs(croot.x[1]) > 1e-6*np.abs(croot.x[0])
+            cond3 = np.abs(croot.x[0] - ucross[0]) < 0.1
+            # cond4 = np.abs(croot.x[1]/croot.x[0]) < 0.1
+            # print([cond1, cond2, cond3, cond4])
+            if cond1 and cond2 and cond3:
                 print([ucross, croot.x])
                 croot1 = [croot.x[0] + 1j*croot.x[1], croot.x[2] + 1j*croot.x[3]]
                 return croot1
@@ -339,8 +343,8 @@ def rootFinder(segs, nreal, ncomplex, npoints, ucross, uxmax, uymax, coeff):
     allroots = []
     for i in range(len(segs)):
         seg = segs[i]
+        npoints = len(seg)
         sreal = polishedRoots(lensEq, 2*uxmax, 2*uymax, args = (seg[npoints/2], coeff)) # starting real roots
-        # print(sreal)
         roots = np.zeros([npoints, int(nreal[i] + ncomplex[i]), 2], dtype = complex)
         for j in range(int(nreal[i])):
             roots[npoints/2][j] = sreal[j]

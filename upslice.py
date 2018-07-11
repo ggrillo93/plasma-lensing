@@ -120,7 +120,7 @@ def planeSliceTOA(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints):
     plt.show()
     return
      
-def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 3000, gsizex = 2048, gsizey = 2048, comp = True):
+def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, spacing = 1e-2, sampling = 1e-3, gsizex = 2048, gsizey = 2048, comp = True):
     """ Plots gain for slice across the u'-plane for given lens parameters, observation frequency, uxmax, slope m and offset n. Compares it to the gain given by solving the Kirchhoff diffraction integral using convolution. Plots the slice gain and the entire u' plane gain. """
 
     # Calculate coefficients
@@ -140,12 +140,6 @@ def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 3000, gsi
     print(upcross)
     print(ucross)
 
-    # Calculate sign of second derivative at caustics
-    sigs = np.zeros(ncross)
-    for i in range(ncross):
-        sigs[i] = np.sign(ax**2/rF2 + lc*(lensh(*[ucross[i][0], ucross[i][1]])[0]))
-    print(sigs)
-
     # Set up quantities for proper u' plane slicing
     ymin = -m*uxmax + n
     ymax = m*uxmax + n
@@ -163,7 +157,6 @@ def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 3000, gsi
     yy = np.linspace(gridToPixel(ymin, uymax, gsizey/2), gridToPixel(ymax, uymax, gsizey/2) - 1, gsizey)
 
     cdist = uxmax/(np.abs(5*lc))
-    print(cdist)
 
     bound = np.insert(upcross, 0, np.array([[xmin, ymin]]), axis = 0) # set up boundaries
     bound = np.append(bound, np.array([[xmax, ymax]]), axis = 0)
@@ -174,10 +167,10 @@ def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 3000, gsi
     for i in range(nzones): # find number of roots at each midpoint
         mpoint = midpoints[i]
         nreal[i] = len(findRoots(lensEq, 2*uxmax, 2*uymax, args = (mpoint, coeff), N = 1000))
-    upxvecs = np.array([np.linspace(bound[i-1][0] + cdist, bound[i][0] - cdist, npoints) for i in range(1, ncross + 2)]) # generate upx vector
+    upxvecs = np.array([np.arange(bound[i-1][0] + cdist, bound[i][0] - cdist, spacing) for i in range(1, ncross + 2)]) # generate upx vector
     segs = np.asarray([lineVert(upx, m, n) for upx in upxvecs]) # generate slice across plane
-    diff = difference(nreal) # determine number of complex solutions
     if comp == True:
+        diff = difference(nreal)
         ncomplex = np.ones(nzones)*100
         for i in range(nzones):
             if diff[i] == 0 or diff[i] == -2:
@@ -193,19 +186,28 @@ def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 3000, gsi
     print(ncomplex)
 
     # Solve lens equation at each coordinate
-    allroots = rootFinder(segs, nreal, ncomplex, npoints, ucross, uxmax, uymax, coeff)
+    allroots = rootFinder(segs, nreal, ncomplex, ucross, uxmax, uymax, coeff)
     
     # Calculate fields
     allfields = []
     for i in range(nzones):
-        fields = obsCalc(GOfield, allroots[i], len(allroots[i][0]), npoints, 3, args=(rF2, lc, ax, ay))
+        fields = obsCalc(GOfield, allroots[i], len(allroots[i][0]), len(segs[i]), 2, args=(rF2, lc, ax, ay))
         allfields.append(fields)
 
     # Construct uniform asymptotics
-    asymp = uniAsymp(allroots, allfields, nreal, ncomplex, npoints, nzones, sigs)
-    interp = UnivariateSpline(upxvecs.flatten(), asymp, s = 0)
-    finx = np.linspace(xmin, xmax, 4*npoints)
-    asymG = interp(finx)
+    asympfuncs = uniAsymp(allfields, upxvecs, nreal, ncomplex)
+    fineupx = np.array([np.arange(bound[i-1][0] + cdist, bound[i][0] - cdist, sampling) for i in range(1, ncross + 2)])
+    flatupx = np.hstack(fineupx)
+    asymG = np.array([])
+    for i in range(nzones):
+        upxvec = fineupx[i]
+        zonefield = np.zeros(len(upxvec), dtype = complex)
+        for root in asympfuncs[i]:
+            amp = root[0](upxvec)
+            phase = root[1](upxvec)
+            zonefield = zonefield + amp*np.exp(1j*phase)
+        zoneG = np.abs(zonefield)**2
+        asymG = np.append(asymG, zoneG)
 
     # KDI
     rx = np.linspace(-2*uxmax, 2*uxmax, gsizex)
@@ -224,6 +226,7 @@ def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 3000, gsi
     soln = soln[int(0.25*gsizex):int(0.75*gsizex), int(0.25*gsizey):int(0.75*gsizey)]
 
     # Plots
+    plt.close()
     fig = plt.figure(figsize = (15, 10))
     grid = gs.GridSpec(3, 2, height_ratios = [4, 1, 0.2])
     tableax = plt.subplot(grid[1, :])
@@ -256,8 +259,8 @@ def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints = 3000, gsi
     G = map_coordinates(soln.T, np.vstack((xx, yy))) # Plot gain along observer motion
     ax1.plot(rx2, G, color = 'blue')
     for caus in upcross.T[0]:
-        ax1.plot([caus, caus], [-10, 1000], ls = 'dashed', color = 'black')
-    ax1.plot(finx, asymG, color = 'red')
+        ax1.axvline(x = caus, ls = 'dashed', color = 'black')
+    ax1.plot(flatupx, asymG, color = 'red')
     ax1.set_ylim(-cdist, np.max(asymG) + 1.)
     ax1.set_xlim(np.min(rx2), np.max(rx2))
     ax1.set_xlabel(r"$u'_x$")

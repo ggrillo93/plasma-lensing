@@ -3,7 +3,7 @@ from observables import *
 from solvers import *
 from upslice import *
 
-def fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, spacing = 1e5, chw = 1.5e6, comp = True, plot = False):
+def fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, spacing = 1e5, sampling = 1e5, comp = True, plot = False):
     
     # Calculate coefficients
     fcoeff = dsl*(dso - dsl)*re*dm/(2*pi*dso)
@@ -11,7 +11,6 @@ def fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, spacing = 1e5, chw = 1.5e6,
     coeff = alpp*np.array([1./ax**2, 1./ay**2])
     rF2p = rFsqr(dso, dsl, 1.)
     lcp = lensc(dm, 1.)
-    phi0p = phi0func(dso, dsl, 1.)
     
     upx, upy = upvec
     ucross = polishedRoots(causEqFreq, np.abs(upx) + 3., np.abs(upy) + 3., args = (upx, ax, ay, upy/upx, 0))
@@ -29,19 +28,11 @@ def fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, spacing = 1e5, chw = 1.5e6,
     p = np.argsort(fcross)
     fcross = fcross[p]
     ucrossb = np.asarray(ucrossb)[p]
-    print(ucrossb)
+    # print(ucrossb)
     ncross = len(fcross)
     print(fcross/GHz)
-    
-    # Calculate sign of second derivative at caustics
-    sigs = np.zeros(ncross)
-    for i in range(ncross):
-        rF2 = rFsqr(dso, dsl, fcross[i])
-        lc = lensc(dm, fcross[i])
-        sigs[i] = np.sign(ax**2/rF2 + lc*lensh(ucrossb[i][0], ucrossb[i][1])[0])
-    print(sigs)
         
-    cdist = 1e4
+    cdist = 5e6
 
     # Set up boundaries
     bound = np.insert(fcross, 0, fmin)
@@ -56,7 +47,7 @@ def fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, spacing = 1e5, chw = 1.5e6,
     segs = np.array([np.arange(bound[i-1] + cdist, bound[i] - cdist, spacing) for i in range(1, ncross + 2)])
     if comp == True:
         diff = difference(nreal)
-        print(diff)
+        # print(diff)
         ncomplex = np.ones(nzones)*100
         for i in range(nzones):
             if diff[i] == 0 or diff[i] == -2:
@@ -80,27 +71,16 @@ def fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, spacing = 1e5, chw = 1.5e6,
         fvec = segs[l]
         roots = allroots[l]
         npoints = len(fvec)
-        fields = np.zeros([nroots, 3, npoints], dtype = complex)
+        fields = np.zeros([nroots, 2, npoints], dtype = complex)
         for i in range(npoints):
             freq = fvec[i]
             rF2 = rF2p/freq
             lc = lcp/freq
             for j in range(nroots):
                 ans = GOfield(roots[i][j], rF2, lc, ax, ay)
-                for k in range(3):
+                for k in range(2):
                     fields[j][k][i] = ans[k]
-        # print(fields.shape)
         allfields.append(fields)
-    
-    # Calculate gain at caustics
-    causgains = np.zeros(ncross)
-    for i in range(ncross):
-        freq = fcross[i]
-        rF2 = rF2p/freq
-        lc = lcp/freq
-        causgains[i] = causAmp(ucrossb[i], rF2, lc, ax, ay)
-    
-    print(causgains)
     
     # Calculate first order gains
     allgains = []
@@ -109,7 +89,6 @@ def fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, spacing = 1e5, chw = 1.5e6,
         roots = allroots[l]
         nroots = int(nreal[l])
         npoints = len(fvec)
-        print(nroots)
         gains = np.zeros(npoints)
         for i in range(npoints):
             freq = fvec[i]
@@ -123,32 +102,37 @@ def fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, spacing = 1e5, chw = 1.5e6,
         allgains.append(gains)
     
     # Construct uniform asymptotics
-    asymp = uniAsymp(allroots, allfields, nreal, ncomplex, nzones, sigs, phi0p*segs)
-    wind = int(chw/spacing)
-    asymGav = groupedAvg(np.abs(asymp)**2, N = wind)
-    # asymGav = np.abs(asymp)**2
-    interp = UnivariateSpline(np.hstack(segs), np.abs(asymp)**2, s = 0)
-    finf = np.linspace(fmin + cdist, fmax, len(asymp))
-    finfav = groupedAvg(finf, N=wind)
-    finfav = finf
-    asymG = interp(finf)
+    asympfuncs = uniAsymp(allfields, segs, nreal, ncomplex)
+    finefvec = np.array([np.arange(bound[i-1] + cdist, bound[i] - cdist, sampling) for i in range(1, ncross + 2)])
+    flatfvec = np.hstack(finefvec)
+    asymG = np.array([])
+    for i in range(nzones):
+        fvec = finefvec[i]
+        zonefield = np.zeros(len(fvec), dtype = complex)
+        for root in asympfuncs[i]:
+            amp = root[0](fvec)
+            phase = root[1](fvec)
+            zonefield = zonefield + amp*np.exp(1j*phase)
+        zoneG = np.abs(zonefield)**2
+        asymG = np.append(asymG, zoneG)
     
     if plot:
         # Plots
+        plt.close()
         fig = plt.figure(figsize=(15, 10))
         grid = gs.GridSpec(1, 2, width_ratios=[5, 1])
         ax0 = plt.subplot(grid[0, 0])
         ax1 = plt.subplot(grid[0, 1])
         
-        ax0.plot(finf/GHz, asymG, color = 'black')
+        ax0.plot(flatfvec/GHz, asymG, color = 'black')
+        ax0.plot(np.hstack(segs)/GHz, np.hstack(allgains), color = 'red')
         ax0.set_ylabel(r'$G$')
         ax0.set_xlabel(r"$\nu$ (GHz)")
         ax0.set_title('Lens shape: ' + '$%s$' % sym.latex(lensf))
         for freq in fcross/GHz:
-            ax0.plot([freq, freq], [-10, 1000], ls='dashed', color='black')
+            ax0.axvline(x = freq, ls='dashed', color='black')
         ax0.set_ylim(-0.1, np.max(asymG) + 1.)
         ax0.set_xlim(fmin/GHz, fmax/GHz)
-        # ax0.set_yscale('log')
         ax0.grid()
         
         # Create table
@@ -168,7 +152,7 @@ def fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, spacing = 1e5, chw = 1.5e6,
         
         plt.show()
     
-    return np.array([finf/GHz, finfav/GHz, asymG, asymGav, fcross, np.hstack(allgains), np.hstack(segs)])
+    return
     
 def fsliceGBulk(upvec, fcaus, fmin, fmax, leqinv, ax, ay, rx, ry, uvec, rF2p, lcp, coeff, cdist, npoints, comp, num, plot = False):
     
