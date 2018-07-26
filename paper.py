@@ -798,13 +798,13 @@ def planeSliceTOAFig(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, npoints, xax =
 # planeSliceGnoKDI(5., 5., rF2, lc, ax, ay, 0.5, 2.5, npoints=2500, comp=True)
 
 # TOA perturbations
-dso, dsl, dm, ax, ay, f = 1.*kpc*pctocm, 0.5*kpc*pctocm, 5e-4*pctocm, 0.25*autocm, 0.4*autocm, 0.8*GHz
-lc = lensc(dm, f)
-print(lc)
-rF2 = rFsqr(dso, dsl, f)
-alp = lc*rF2
-print([alp/ax**2, alp/ay**2])
-planeSliceTOAFig(7., 7., dso, dsl, f, dm, 0.2, 0.5, ax, ay, 1000, xax = False)
+# dso, dsl, dm, ax, ay, f = 1.*kpc*pctocm, 0.5*kpc*pctocm, 5e-4*pctocm, 0.25*autocm, 0.4*autocm, 0.8*GHz
+# lc = lensc(dm, f)
+# print(lc)
+# rF2 = rFsqr(dso, dsl, f)
+# alp = lc*rF2
+# print([alp/ax**2, alp/ay**2])
+# planeSliceTOAFig(7., 7., dso, dsl, f, dm, 0.2, 0.5, ax, ay, 1000, xax = False)
 # causPlotter(5., 5., alp, ax, ay, m=0.5, n=0.5)
 # causDspectra(5., 5., ax, ay, dso, dsl, dm, 0.5, 2.5, N = 250)
 
@@ -822,14 +822,14 @@ planeSliceTOAFig(7., 7., dso, dsl, f, dm, 0.2, 0.5, ax, ay, 1000, xax = False)
 # solveKDI(3., 3., dso, dsl, f, dm, ax, ay, 2048, 2048, m=1., n=0)
 
 # Appendix A
-# dso, dsl, dm, ax, ay, f = 5.*kpc*pctocm, 2.5*kpc*pctocm, -5e-4*pctocm, 0.7*autocm, 1.*autocm, 0.8*GHz
+dso, dsl, dm, ax, ay, f = 5.*kpc*pctocm, 2.5*kpc*pctocm, -2e-6*pctocm, 0.04*autocm, 0.05*autocm, 1.*GHz
 # lc = lensc(dm, f)
 # print(lc)
 # rF2 = rFsqr(dso, dsl, f)
 # alp = lc*rF2
 # print([alp/ax**2, alp/ay**2])
 # # causPlotter(5., 5., alp, ax, ay, m=0.5, n=0.5)
-# # solveKDI(5., 5., dso, dsl, f, dm, ax, ay, 4096, 4096, 4, m=0.5, n=0.5)
+solveKDI(5., 5., dso, dsl, f, dm, ax, ay, 4096, 4096, 5, m=0.5, n=0.5)
 # # m, n = 0.5, -2.5
 # # path = '/home/gian/Documents/Research/NANOGrav/Lensing/Scripts/Simulation/KDI/'
 # # ucross = polishedRoots(causticEqSlice, 5., 5., args = (alp, m, n, ax, ay), N = 1000)

@@ -9,6 +9,9 @@ from matplotlib import pyplot as plt
 from decimal import Decimal
 from scipy.interpolate import *
 import pypulse as pp
+from scipy.signal import *
+from scipy.fftpack import *
+from numpy.random import *
 
 c = 2.998e10
 pctocm = 3.0856e18
@@ -28,7 +31,7 @@ asymgauss = sym.exp(-u_x**2-u_y**4)
 supergauss2 = sym.exp(-(u_x**2+u_y**2)**2)
 supergauss3 = sym.exp(-(u_x**2+u_y**2)**3)
 superlorentz = 1./((u_x**2 + u_y**2)**2+1.)
-lensf = gauss
+lensf = rectgauss
 lensg = np.array([sym.diff(lensf, u_x), sym.diff(lensf, u_y)])
 lensh = np.array([sym.diff(lensf, u_x, u_x), sym.diff(lensf, u_y, u_y), sym.diff(lensf, u_x, u_y)])
 lensgh = np.array([sym.diff(lensf, u_x, u_x, u_x), sym.diff(lensf, u_x, u_x, u_y), sym.diff(lensf, u_x, u_y, u_y), sym.diff(lensf, u_y, u_y, u_y)])
@@ -117,11 +120,18 @@ def groupedAvg(myArray, N=2):
     return result
     
 def tempmatch(data, template, dt):
-    pulse = pp.SinglePulse(data)
+    pulse = pp.SinglePulse(data, windowsize = 256)
     fit = pulse.fitPulse(template)
-    print(fit)
     ans = np.array([fit[1]*dt, fit[3]*dt])
     return ans
     
-def gaussian(t, fwhm, a, dt):
+def gausstemp(t, fwhm, a, dt):
     return a*np.exp(-4*np.log(2)*((t+dt)/fwhm)**2)
+    
+
+def findN(bw, nch, T):
+    N0 = bw*T
+    if N0 % (2048*nch) == 0:
+        return N0
+    else:
+        return int(np.ceil(N0/(2048*nch))*nch*2048)

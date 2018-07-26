@@ -1,11 +1,8 @@
 from fundfunctions import *
 from solvers import *
 from observables import *
-from scipy import ndimage as ndim
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.ticker import MaxNLocator
-from scipy.signal import *
-from scipy.fftpack import *
 
 def pulsedynspec(dso, dsl, fmin, fmax, dm, upvec, period, ax, ay, template = None, spacing = 1e5, noise = 0.2, tsize = 2048, chw = 1.5e6):
     
@@ -309,22 +306,168 @@ def sideticks(ax):
     else:
         return ticks[:-1]
 
-def pulsedynspecB(dso, dsl, fmin, fmax, dm, upvec, T, ax, ay, fc, nch, bw, spacing, noise = 0.1):
+def pulsedynspecB(dso, dsl, dm, upvec, T, ax, ay, fc, nch, bw, spacing, noise = 0.1, comp = False, template = None):
     
     nsam = findN(bw, nch, T)
-    taxis = np.linspace(-T/2., T/2., nsam)
-    template = gauss(t, T/10., 1., 0.)
-    # std = 0.1
-    # poisson = np.random.poisson(lam = std**2*np.ones(nsam), size = None)
-    # shotnoise = poisson - np.mean(poisson)
-    # pulse = template*shotnoise + noise*np.random.randn(nsam)
-    pulse = 0.25*template*np.random.randn(nsam) + 0.1*np.random.randn(nsam)
-    hetpulse = pulse*np.exp(1j*2*pi*t*fc)
-    ft = fft(hetpulse)
-    freq = fftshift(fftfreq(nsam, d = T/nsam))
-    # splft = np.split(ft, nch)
-    # freqs = np.split(freq + fc, nch)
-    # cfreq = np.mean(freqs, axis = 1)
+    t = np.linspace(-T/2., T/2., nsam)
+    dt = T/nsam
+    if template == None:
+        template = gausstemp(np.linspace(-T/2., T/2., 2048), T/10., 1., 0.)
+    delta = unit_impulse(nsam, 'mid')
+    ft = fftshift(fft(delta))
+    freqs = fftfreq(nsam, d = dt)
+    nfactor = 0.25
+    fmin = min(freqs) + fc
+    fmax = max(freqs) + fc
+    
+    # Calculate coefficients
+    fcoeff = dsl*(dso - dsl)*re*dm/(2*pi*dso)
+    alpp = alpha(dso, dsl, 1., dm)
+    coeff = alpp*np.array([1./ax**2, 1./ay**2])
+    rF2p = rFsqr(dso, dsl, 1.)
+    lcp = lensc(dm, 1.)
+
+    # Find frequency caustics
+    upx, upy = upvec
+    ucross = polishedRoots(causEqFreq, np.abs(upx) + 3., np.abs(upy) + 3., args = (upx, ax, ay, upy/upx, 0))
+    fcross = []
+    ucrossb = []
+    for uvec in ucross:
+        ux, uy = uvec
+        arg = fcoeff*lensg(ux, uy)[0]/(ux - upx)
+        if arg > 0:
+            freq = c*np.sqrt(arg)/ax
+            if fmin < freq < fmax:
+                fcross.append(freq)
+                ucrossb.append([ux, uy])
+    fcross = np.asarray(fcross)
+    p = np.argsort(fcross)
+    fcross = fcross[p]
+    ucrossb = np.asarray(ucrossb)[p]
+    ncross = len(fcross)
+    print(fcross/GHz)
+        
+    cdist = 1e4 # set minimum caustic distance
+
+    # Set up boundaries
+    if ncross != 0:
+        bound = np.insert(fcross, 0, fmin)
+        bound = np.append(bound, fmax)
+        midpoints = [(bound[i] + bound[i+1])/2. for i in range(len(bound) - 1)] # find middle point between boundaries
+        nzones = len(midpoints)
+        nreal = np.zeros(nzones)
+        for i in range(nzones):
+            mpoint = midpoints[i]
+            leqcoeff = coeff/mpoint**2
+            nreal[i] = len(findRoots(lensEq, np.abs(upx) + 3., np.abs(upy) + 3., args = (upvec, leqcoeff), N = 1000))
+        segs = np.array([np.arange(bound[i-1] + cdist, bound[i] - cdist, spacing) for i in range(1, ncross + 2)])
+        if comp == True:
+            diff = difference(nreal)
+            ncomplex = np.ones(nzones)*100
+            for i in range(nzones):
+                if diff[i] == 0 or diff[i] == -2:
+                    ncomplex[i] = 1
+                elif diff[i] == -4:
+                    ncomplex[i] = 2
+                elif diff[i] == 4 or diff[i] == 2:
+                    ncomplex[i] = 0
+        else:
+            ncomplex = np.zeros(nzones)
+    else:
+        segs = [np.arange(fmin, fmax, spacing)]
+        mpoint = segs[0][len(segs[0])/2]
+        leqcoeff = coeff/mpoint**2
+        nreal = [len(findRoots(lensEq, np.abs(upx) + 3., np.abs(upy) + 3., args = (upvec, leqcoeff), N = 1000))]
+        ncomplex = [0]
+        nzones = 1
+    print(nreal)
+    print(ncomplex)
+    
+    # Solve lens equation at each coordinate
+    allroots = rootFinderFreq(segs, nreal, ncomplex, ucrossb, upvec, coeff)
+
+    # Calculate fields
+    allfields = []
+    for l in range(nzones):
+        nroots = len(allroots[l][0])
+        fvec = segs[l]
+        roots = allroots[l]
+        npoints = len(fvec)
+        fields = np.zeros([nroots, 2, npoints], dtype=complex)
+        for i in range(npoints):
+            freq = fvec[i]
+            rF2 = rF2p/freq
+            lc = lcp/freq
+            for j in range(nroots):
+                ans = GOfield(roots[i][j], rF2, lc, ax, ay)
+                for k in range(2):
+                    fields[j][k][i] = ans[k]
+        allfields.append(fields)
+    
+    asympfuncs = uniAsymp(allfields, segs, nreal, ncomplex)
+    fvec = fftshift(freqs) + fc
+    if ncross != 0:
+        splitat = fvec.searchsorted(fcross)
+        splfvec = np.array_split(fvec, splitat)
+        splft = np.array_split(ft, splitat)
+        lspec = np.array([], dtype = complex)
+        for i in range(nzones):
+            seg = splfvec[i]
+            orzf = splft[i]
+            npts = len(seg)
+            zf = np.zeros(npts, dtype = complex)
+            for root in asympfuncs[i]:
+                amp = root[0](seg)
+                phase = root[1](seg)
+                zf = zf + orzf*amp*np.exp(1j*phase)
+            lspec = np.append(lspec, zf)
+    else:
+        lspec = np.zeros(len(fvec), dtype = complex)
+        for root in asympfuncs[0]:
+            amp = root[0](fvec)
+            phase = root[1](fvec)
+            lspec = lspec + ft*amp*np.exp(1j*phase)
+            
+    chlspec = np.split(lspec, nch)
+    chfvec = np.split(fvec, nch)
+    chft = np.split(ft, nch)
+    npts = len(chlspec[0])
+    dspec = np.zeros([nch, 2048])
+    for i in range(nch):
+        ift = ifft(ifftshift(chlspec[i])) # + 0.5*noise*(1j*randn(npts) + randn(npts))
+        I = groupedAvg(np.abs(ift)**2, N = nsam/(2048*nch))/nfactor
+        # I = fftconvolve(template, I, mode='same')
+        I = np.abs(fftshift(ifft(fft(template)*fft(I))))
+        # I = I - np.mean(I[:100])
+        # plt.plot(range(2048), I)
+        # plt.show()
+        dspec[i] = I + noise*randn(2048)
+    dspec = np.fliplr(dspec)
+    
+    # Calculate TOA perturbation from noise
+    # orpulse = np.zeros(2048)
+    # for i in range(nch):
+    #     ift = ifft(ifftshift(chft[i]))
+    #     I = groupedAvg(np.abs(ift)**2, N=nsam/(2048*nch))/nfactor
+    #     I = fftconvolve(I, template, mode = 'same')
+    #     orpulse = orpulse + I
+    # orpulse = np.flipud(orpulse/2048.)
+    
+    orpert = 0
+
+    cfreqvec = np.mean(chfvec, axis = 1)
+    
+    return [dspec, fvec, cfreqvec, groupedAvg(t, N = nsam/2048), orpert]
+    
+def pulsedynspecC(dso, dsl, dm, upvec, T, ax, ay, fc, nch, bw, spacing, noise = 0.1, comp = False, template = None, nfold = 100):
+    
+    nsam = findN(bw, nch, T)
+    t = np.linspace(-T/2., T/2., nsam)
+    dt = T/nsam
+    freqs = fftfreq(nsam, d = dt)
+    nfactor = nch/16.
+    fmin = min(freqs) + fc
+    fmax = max(freqs) + fc
     
     # Calculate coefficients
     fcoeff = dsl*(dso - dsl)*re*dm/(2*pi*dso)
@@ -357,28 +500,43 @@ def pulsedynspecB(dso, dsl, fmin, fmax, dm, upvec, T, ax, ay, fc, nch, bw, spaci
         
     cdist = 1e4 # set minimum caustic distance
 
-    # Create segments
-    bound = np.insert(fcross, 0, fmin)
-    bound = np.append(bound, fmax)
-    midpoints = [(bound[i] + bound[i+1])/2. for i in range(len(bound) - 1)] # find middle point between boundaries
-    nzones = len(midpoints)
-    nreal = np.zeros(nzones, dtype = int)
-    for i in range(nzones):
-        mpoint = midpoints[i]
+    # Set up boundaries
+    if ncross != 0:
+        bound = np.insert(fcross, 0, fmin)
+        bound = np.append(bound, fmax)
+        midpoints = [(bound[i] + bound[i+1])/2. for i in range(len(bound) - 1)] # find middle point between boundaries
+        nzones = len(midpoints)
+        nreal = np.zeros(nzones)
+        for i in range(nzones):
+            mpoint = midpoints[i]
+            leqcoeff = coeff/mpoint**2
+            nreal[i] = len(findRoots(lensEq, np.abs(upx) + 3., np.abs(upy) + 3., args = (upvec, leqcoeff), N = 1000))
+        segs = np.array([np.arange(bound[i-1] + cdist, bound[i] - cdist, spacing) for i in range(1, ncross + 2)])
+        if comp == True:
+            diff = difference(nreal)
+            ncomplex = np.ones(nzones)*100
+            for i in range(nzones):
+                if diff[i] == 0 or diff[i] == -2:
+                    ncomplex[i] = 1
+                elif diff[i] == -4:
+                    ncomplex[i] = 2
+                elif diff[i] == 4 or diff[i] == 2:
+                    ncomplex[i] = 0
+        else:
+            ncomplex = np.zeros(nzones)
+    else:
+        segs = [np.arange(fmin, fmax, spacing)]
+        mpoint = segs[0][len(segs[0])/2]
         leqcoeff = coeff/mpoint**2
-        nreal[i] = int(len(findRoots(lensEq, np.abs(upx) + 3., np.abs(upy) + 3., args = (upvec, leqcoeff), N = 1000)))
-    segs = np.array([np.arange(bound[i-1] + cdist, bound[i] - cdist, spacing) for i in range(1, ncross + 2)])
+        nreal = [len(findRoots(lensEq, np.abs(upx) + 3., np.abs(upy) + 3., args = (upvec, leqcoeff), N = 1000))]
+        ncomplex = [0]
+        nzones = 1
+    print(nreal)
+    print(ncomplex)
     
-    # Calculate coefficient for each frequency
-    alp = alpp/cfreq**2
-    rF2 = rF2p/cfreq
-    lc = lcp/cfreq
-    
-    ncomplex = np.zeros(nzones) # only real rays (for now)
-    
+    # Solve lens equation at each coordinate
     allroots = rootFinderFreq(segs, nreal, ncomplex, ucrossb, upvec, coeff)
-    nfpts = [len(seg) for seg in segs]
-    
+
     # Calculate fields
     allfields = []
     for l in range(nzones):
@@ -386,18 +544,196 @@ def pulsedynspecB(dso, dsl, fmin, fmax, dm, upvec, T, ax, ay, fc, nch, bw, spaci
         fvec = segs[l]
         roots = allroots[l]
         npoints = len(fvec)
-        fields = np.zeros([nroots, 2, npoints])
+        fields = np.zeros([nroots, 2, npoints], dtype=complex)
         for i in range(npoints):
+            freq = fvec[i]
+            rF2 = rF2p/freq
+            lc = lcp/freq
             for j in range(nroots):
-                ans = GOfield2(roots[i][j], rF2[i][j], lc[i][j], ax, ay)
+                ans = GOfield(roots[i][j], rF2, lc, ax, ay)
                 for k in range(2):
                     fields[j][k][i] = ans[k]
         allfields.append(fields)
     
+    asympfuncs = uniAsymp(allfields, segs, nreal, ncomplex)
+    fvec = fftshift(freqs) + fc
+    
+    if template == None:
+        template = gausstemp(t, T/10., 1., 0.)
+        
+    avdspec = np.zeros([nch, 2048])
+    avorpulse = np.zeros(2048)
+    
+    for h in range(nfold):
+        if h % 10 == 0:
+            print(h)
+        pulse = 0.25*template*np.random.randn(nsam) + noise*np.random.randn(nsam)
+        hetpulse = pulse*np.exp(1j*2*pi*t*fc)
+        ft = fftshift(fft(hetpulse))
+        if ncross != 0:
+            splitat = fvec.searchsorted(fcross)
+            splfvec = np.array_split(fvec, splitat)
+            splft = np.array_split(ft, splitat)
+            lspec = np.array([], dtype = complex)
+            for i in range(nzones):
+                seg = splfvec[i]
+                orzf = splft[i]
+                zf = np.zeros(len(seg), dtype = complex)
+                for root in asympfuncs[i]:
+                    amp = root[0](seg)
+                    phase = root[1](seg)
+                    zf = zf + orzf*amp*np.exp(1j*phase)
+                lspec = np.append(lspec, zf)
+        else:
+            lspec = np.zeros(len(fvec), dtype = complex)
+            for root in asympfuncs[0]:
+                amp = root[0](fvec)
+                phase = root[1](fvec)
+                lspec = lspec + ft*amp*np.exp(1j*phase)
+                
+        chlspec = np.split(lspec, nch)
+        chfvec = np.split(fvec, nch)
+        chft = np.split(ft, nch)
+        dspec = np.zeros([nch, 2048])
+        for i in range(nch):
+            ift = ifft(ifftshift(chlspec[i]))
+            I = groupedAvg(np.abs(ift)**2, N = nsam/(2048*nch))/nfactor
+            dspec[i] = I
+        dspec = np.fliplr(dspec)
+        avdspec = avdspec + dspec
+    
+        # Calculate TOA perturbation from noise
+        orpulse = np.zeros(2048)
+        for i in range(nch):
+            ift = ifft(ifftshift(chft[i]))
+            I = groupedAvg(np.abs(ift)**2, N=nsam/(2048*nch))/nfactor
+            orpulse = orpulse + I
+        orpulse = np.flipud(orpulse/2048.)
+        avorpulse = avorpulse + orpulse
+    
+    avdspec = avdspec/nfold
+    avorpulse = avorpulse/nfold
 
-def findN(bw, nch, T):
-    N0 = bw*T
-    if N0 % (2048*nch) == 0:
-        return N0
+    orpert = tempmatch(avorpulse, gausstemp(np.linspace(-T/2., T/2., 2048), T/10., 1., 0.)**2, T/2048.)[0]*1e6
+    cfreqvec = np.mean(chfvec, axis = 1)
+    
+    return [dspec, fvec, cfreqvec, groupedAvg(t, N = nsam/2048), orpert]
+    
+def plotdspec(dso, dsl, dm, upvec, T, ax, ay, spacing, noise = 0.1, comp = False, template = None, nfold = 100):
+
+    nch = 1284
+    bw = 2e9
+    dspec, fvec, cfreqvec, avt, orpert = pulsedynspecB(dso, dsl, dm, upvec, T, ax, ay, 1.52e9, nch, bw, spacing, noise=noise, comp=comp, template = template)
+    band1 = (cfreqvec/GHz > 0.73) * (cfreqvec/GHz < 0.91)
+    band2 = (cfreqvec/GHz > 1.15) * (cfreqvec/GHz < 1.88)
+    band3 = (cfreqvec/GHz > 2.05) * (cfreqvec/GHz < 2.4)
+    bands = [band1, band2, band3]
+
+    plt.close()
+    
+    template = gausstemp(np.linspace(-T/2., T/2., 2048), T/10., 1., 0.)
+    spec = np.mean(template)
+    fig = plt.figure(figsize=(19, 8), dpi=100)
+    grid = gs.GridSpec(2, 5)
+    ax0 = plt.subplot(grid[:, 0])
+    ax1 = fig.add_subplot(grid[:, 1])
+    ax2 = fig.add_subplot(grid[:, 2])
+    ax3 = fig.add_subplot(grid[:, 3])
+    ax4 = fig.add_subplot(grid[0, 4])
+    ax5 = fig.add_subplot(grid[1, 4])
+    axes = [ax1, ax2, ax3]
+    
+    xlim = T/2.*1000
+    toapert = np.zeros([3, 2])
+    
+    # Plot individual bands
+    for i in range(len(bands)):
+        band = bands[i]
+        axi = axes[i]
+        dsp = dspec[:][band]
+        freq = cfreqvec[band]
+        avpulse = np.mean(dsp, 0)
+        im0 = axi.imshow(dsp, origin='lower', aspect='auto', extent=(-xlim, xlim, min(freq)/GHz, max(freq)/GHz), cmap='Greys', vmax = np.max(dsp/4.))
+        axi.set_ylabel(r'$\nu$ (GHz)', fontsize = 16)
+        axi.set_xlabel(r'$\Delta t$ (ms)', fontsize = 16)
+        axi.tick_params(labelsize = 12)
+        div0 = make_axes_locatable(axi)
+        ax01 = div0.append_axes("top", size = "20%", sharex = axi)
+        ax01.plot(avt*1000, avpulse, color = 'black')
+        ax01.axvline(x = 0, ls = 'dashed', color = 'blue')
+        ax01.tick_params(labelsize = 12)
+        ax02 = div0.append_axes("right", size = "40%", sharey = axi)
+        avfreqflux = np.mean(dsp, 1)/spec
+        ax02.plot(avfreqflux, freq/GHz, color = 'black')
+        ax02.xaxis.tick_top()
+        ax02.xaxis.set_label_position('top')
+        ax02.set_ylim([min(freq)/GHz, max(freq)/GHz])
+        if np.max(avfreqflux) < 1e-1:
+            ax02.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+        if np.max(avpulse) < 1e-1:
+            ax01.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+        ax01.set_ylabel(r'$\overline{G(t)}$', fontsize = 12)
+        ax02.set_xlabel(r'$\overline{G(\nu)}$', fontsize = 12)
+        plt.setp(ax01.get_xticklabels(), visible=False)
+        plt.setp(ax02.get_yticklabels(), visible=False)
+        axi.yaxis.set_major_locator(MaxNLocator(nbins=len(axi.get_yticklabels()), prune='upper'))
+        ax02.xaxis.set_major_locator(MaxNLocator(nbins=3, prune='lower'))
+        ax02.set_xlim(left = 0)
+        match = tempmatch(avpulse, template, T/2048.)*1e6
+        toapert[i] = np.array([match[0] - orpert, match[1]])
+        
+    # Plot all bands
+    avpulse = np.mean(dspec, 0)
+    im0 = ax0.imshow(dspec, origin = 'lower', aspect = 'auto', extent = (-xlim, xlim, min(cfreqvec)/GHz, max(cfreqvec)/GHz), cmap = 'Greys', vmax = np.max(dspec/4.))
+    ax0.set_ylabel(r'$\nu$ (GHz)', fontsize = 16)
+    ax0.set_xlabel(r'$\Delta t$ (ms)', fontsize = 16)
+    ax0.tick_params(labelsize = 12)
+    div0 = make_axes_locatable(ax0)
+    ax01 = div0.append_axes("top", size = "20%", sharex = ax0)
+    ax01.plot(avt*1000, avpulse, color = 'black')
+    ax01.axvline(x = 0, ls = 'dashed', color = 'blue')
+    ax01.tick_params(labelsize = 12)
+    ax02 = div0.append_axes("right", size = "40%", sharey = ax0)
+    avfreqflux = np.mean(dspec, 1)/spec
+    ax02.plot(avfreqflux, cfreqvec/GHz, color = 'black')
+    ax02.xaxis.tick_top()
+    ax02.xaxis.set_label_position('top')
+    ax02.set_ylim([min(cfreqvec)/GHz, max(cfreqvec)/GHz])
+    if np.max(avfreqflux) < 1e-1:
+        ax02.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+    if np.max(avpulse) < 1e-1:
+        ax01.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+    ax01.set_ylabel(r'$\overline{G(t)}$', fontsize = 12)
+    ax02.set_xlabel(r'$\overline{G(\nu)}$', fontsize = 12)
+    plt.setp(ax01.get_xticklabels(), visible=False)
+    plt.setp(ax02.get_yticklabels(), visible=False)
+    ax0.yaxis.set_major_locator(MaxNLocator(nbins=len(ax0.get_yticklabels()), prune='upper'))
+    ax02.xaxis.set_major_locator(MaxNLocator(nbins=3, prune='lower'))
+    ax02.set_xlim(left = 0)
+    
+    ax4.axis('off')
+    ax4.axis('tight')
+    col_labels1 = (['Band', r'$\Delta t$ ($\mu$s)'])
+    table1vals = [['0.82 GHz', str(np.around(toapert[0][0], 3)) + r' $\pm$ ' + str(np.around(toapert[0][1], 3))], ['1.4 GHz', str(np.around(toapert[1][0], 3)) + r' $\pm$ ' + str(np.around(toapert[1][1], 3))], ['2.3 GHz', str(np.around(toapert[2][0], 3)) + r' $\pm$ ' + str(np.around(toapert[2][1], 3))]]
+    table1 = ax4.table(cellText = table1vals, colWidths = [0.25, 0.3], colLabels = col_labels1, loc = 'center')
+    table1.auto_set_font_size(False)
+    table1.set_fontsize(11)
+    table1.scale(2., 2.)
+    
+    col_labels2 = ['Parameter', 'Value']
+    if np.abs(dm/pctocm) < 1:
+        dmlabel = "{:.2E}".format(Decimal(dm/pctocm))
     else:
-        return int(np.ceil(N0/(2048*nch))*nch*2048)
+        dmlabel = str(dm/pctocm)
+    table2vals = [[r'$d_{so} \: (kpc)$', np.around(dso/pctocm/kpc, 2)], [r'$d_{sl} \: (kpc)$', np.around(dsl/pctocm/kpc, 2)], [r'$a_x \: (AU)$', np.around(ax/autocm, 2)], [r'$a_y \: (AU)$', np.around(ay/autocm, 2)], [r'$DM_l \: (pc \, cm^{-3})$', dmlabel], [r"$\vec{u}'$", np.around(upvec, 2)], [r'Sampling (MHz)', np.around(spacing/1e6, 3)], ['Ch. W. (MHz)', np.around(bw/nch*1e-6, 3)]]
+    ax5.axis('tight')
+    ax5.axis('off')
+    table2 = ax5.table(cellText = table2vals, colWidths = [0.3, 0.25], colLabels = col_labels2, loc = 'center')
+    table2.auto_set_font_size(False)
+    table2.set_fontsize(11)
+    table2.scale(2., 2.)
+    
+    plt.tight_layout(pad = 2.)
+    plt.show()
+
+    return

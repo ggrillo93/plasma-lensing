@@ -3,7 +3,7 @@ from observables import *
 from solvers import *
 from upslice import *
 
-def fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, spacing = 1e5, sampling = 1e5, comp = True, plot = False):
+def fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, spacing = 1e5, sampling = 5e4, comp = True, plot = False):
     
     # Calculate coefficients
     fcoeff = dsl*(dso - dsl)*re*dm/(2*pi*dso)
@@ -31,7 +31,7 @@ def fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, spacing = 1e5, sampling = 1
     # print(ucrossb)
     ncross = len(fcross)
     print(fcross/GHz)
-        
+    
     cdist = 1e4
 
     # Set up boundaries
@@ -112,7 +112,6 @@ def fsliceG(upvec, fmin, fmax, dso, dsl, dm, ax, ay, spacing = 1e5, sampling = 1
         for root in asympfuncs[i]:
             amp = root[0](fvec)
             phase = root[1](fvec)
-            print(am)
             zonefield = zonefield + amp*np.exp(1j*phase)
         zoneG = np.abs(zonefield)**2
         asymG = np.append(asymG, zoneG)

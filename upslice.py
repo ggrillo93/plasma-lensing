@@ -162,7 +162,7 @@ def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, spacing = 1e-2, sam
     bound = np.append(bound, np.array([[xmax, ymax]]), axis = 0)
     midpoints = [(bound[i] + bound[i+1])/2. for i in range(len(bound) - 1)] # find middle point between boundaries
     nzones = len(midpoints)
-    nreal = np.zeros(nzones)
+    nreal = np.zeros(nzones, dtype = int)
     print(nzones)
     for i in range(nzones): # find number of roots at each midpoint
         mpoint = midpoints[i]
@@ -192,6 +192,17 @@ def planeSliceG(uxmax, uymax, dso, dsl, f, dm, m, n, ax, ay, spacing = 1e-2, sam
     allfields = []
     for i in range(nzones):
         fields = obsCalc(GOfield, allroots[i], len(allroots[i][0]), len(segs[i]), 2, args=(rF2, lc, ax, ay))
+        # if nreal[i] > 1:
+        #     merge = [findMinPhi(fields.T[0][1][:nreal[i]]), findMinPhi(fields.T[-1][1][:nreal[i]])]  # find closest real roots at each end
+        #     print(merge)
+        #     print('In')
+        #     if merge[0][1][0] < pi:
+        #         GOfield(allroots[i][0][merge[0][0][0][0]], rF2, lc, ax, ay)
+        #         GOfield(allroots[i][0][merge[0][0][0][1]], rF2, lc, ax, ay)
+        #     if merge[1][1][0] < pi:
+        #         GOfield(allroots[i][-1][merge[1][0][0][0]], rF2, lc, ax, ay)
+        #         GOfield(allroots[i][-1][merge[1][0][0][1]], rF2, lc, ax, ay)
+        #     print('Out')
         allfields.append(fields)
 
     # Construct uniform asymptotics
